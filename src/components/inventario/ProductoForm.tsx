@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchSelect } from '@/components/ui/SearchSelect';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { CATEGORIAS, type Categoria, type Producto, type TipoProducto } from '@/domain/types';
@@ -116,22 +117,18 @@ export function ProductoForm({
                 </button>
               </div>
             ))}
-            <div className="mt-1 flex items-center gap-2">
-              <select
+            <div className="mt-1 flex items-start gap-2">
+              <SearchSelect
+                className="min-w-0 flex-1"
                 value={recetaPick}
-                onChange={(e) => setRecetaPick(e.target.value)}
-                className="min-w-0 flex-1 rounded-md border border-input-border bg-input-bg px-2.5 py-2 text-[13px] outline-none focus-visible:border-gold"
-              >
-                <option value="">Elegir insumo…</option>
-                {insumos.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.nombre} ({i.unidad})
-                  </option>
-                ))}
-              </select>
+                onChange={setRecetaPick}
+                placeholder="Buscar insumo por nombre…"
+                emptyMessage="Sin insumos que coincidan."
+                options={insumos.map((i) => ({ value: i.id, label: `${i.nombre} (${i.unidad})` }))}
+              />
               <button
                 onClick={addReceta}
-                className="cursor-pointer rounded-[8px] border border-border-strong bg-surface-raised px-3.5 py-2 text-[13px]"
+                className="cursor-pointer rounded-[8px] border border-border-strong bg-surface-raised px-3.5 py-2.5 text-[13px]"
               >
                 Agregar
               </button>
