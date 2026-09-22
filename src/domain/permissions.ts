@@ -78,7 +78,7 @@ export const VIEW_META: Record<ViewKey, { label: string; subtitle: string; path:
 };
 
 export function landingPathFor(rol: Rol): string {
-  const first = VIEWS_BY_ROLE[rol][0];
+  const first = VIEWS_BY_ROLE[rol][0]!;
   return VIEW_META[first].path;
 }
 

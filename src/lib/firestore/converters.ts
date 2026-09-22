@@ -19,4 +19,17 @@ export const usuarioConverter = makeConverter<Usuario>();
 export const productoConverter = makeConverter<Producto>();
 export const pedidoConverter = makeConverter<Pedido>();
 export const compraConverter = makeConverter<Compra>();
-export const cierreConverter = makeConverter<CierreCaja>();
+
+/**
+ * cierresCaja doesn't have a separate `id` field — the doc id IS `fecha`,
+ * which is already stored as a field on the document, so no id-merging is
+ * needed here (unlike the other collections' auto-generated ids).
+ */
+export const cierreConverter: FirestoreDataConverter<CierreCaja> = {
+  toFirestore(model: CierreCaja) {
+    return { ...model };
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot, options: SnapshotOptions) {
+    return snapshot.data(options) as CierreCaja;
+  },
+};

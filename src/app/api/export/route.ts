@@ -7,7 +7,7 @@ import { todayStr } from '@/lib/utils/date';
 export const GET = withApiErrors(async (req: NextRequest) => {
   await requireRole(req, ['admin']);
   const buffer = await buildBackupWorkbook();
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
