@@ -1,0 +1,57 @@
+/**
+ * Design tokens — single source of truth for color, spacing and radius.
+ * Luz de Luna runs one theme only (tema oscuro nocturno): candlelight gold
+ * over a warm charcoal, with a cool "moonlight" blue-gray for secondary
+ * accents. Components must reference these variables, never raw oklch().
+ */
+
+:root {
+  /* Surfaces, darkest to lightest */
+  --color-bg: oklch(0.17 0.014 52);
+  --color-surface-sunken: oklch(0.195 0.016 52);
+  --color-surface: oklch(0.21 0.016 52);
+  --color-surface-raised: oklch(0.225 0.016 52);
+  --color-surface-hover: oklch(0.245 0.018 52);
+
+  /* Borders */
+  --color-border: oklch(0.29 0.014 52);
+  --color-border-strong: oklch(0.34 0.014 52);
+
+  /* Text */
+  --color-text: oklch(0.95 0.008 80);
+  --color-text-soft: oklch(0.82 0.012 70);
+  --color-muted: oklch(0.66 0.012 70);
+  --color-muted-2: oklch(0.6 0.012 70);
+
+  /* Brand accents */
+  --color-gold: oklch(0.8 0.12 80);
+  --color-gold-hover: oklch(0.87 0.11 82);
+  --color-ink: oklch(0.2 0.04 70);
+  --color-luna: oklch(0.72 0.05 250);
+  --color-luna-fg: oklch(0.86 0.05 250);
+  --color-luna-bg: oklch(0.27 0.03 250);
+
+  /* Status */
+  --color-ok: oklch(0.3 0.05 145);
+  --color-ok-fg: oklch(0.88 0.08 145);
+  --color-warn: oklch(0.32 0.06 62);
+  --color-warn-fg: oklch(0.9 0.09 84);
+  --color-bad: oklch(0.32 0.07 28);
+  --color-bad-fg: oklch(0.86 0.09 32);
+  --color-danger: oklch(0.55 0.16 28);
+  --color-danger-fg: oklch(0.97 0.02 60);
+
+  /* Inputs */
+  --color-input-bg: oklch(0.22 0.014 52);
+  --color-input-border: var(--color-border-strong);
+
+  /* Elevation */
+  --shadow-modal: 0 24px 60px -20px oklch(0.05 0.01 52 / 0.65);
+  --shadow-card: 0 1px 0 oklch(0.1 0.01 52 / 0.4);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 380ms;
+}

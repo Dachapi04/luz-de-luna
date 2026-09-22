@@ -1,0 +1,61 @@
+/**
+ * Animation layer — kept isolated from component logic so motion can be
+ * tuned or stripped without touching business code. Everything here
+ * animates transform/opacity only (GPU-friendly, no layout thrash) and
+ * every rule is neutralized under prefers-reduced-motion.
+ */
+
+.transition-base {
+  transition-property: background-color, border-color, color, transform, opacity, box-shadow;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out);
+}
+
+.transition-fast {
+  transition-property: background-color, border-color, color, transform, opacity;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+.press-scale {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-hover) 37%,
+    var(--color-surface) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+.stagger-child {
+  animation: slide-up var(--duration-slow) var(--ease-out) both;
+}
+.stagger-child:nth-child(1) { animation-delay: 0ms; }
+.stagger-child:nth-child(2) { animation-delay: 30ms; }
+.stagger-child:nth-child(3) { animation-delay: 60ms; }
+.stagger-child:nth-child(4) { animation-delay: 90ms; }
+.stagger-child:nth-child(5) { animation-delay: 120ms; }
+.stagger-child:nth-child(6) { animation-delay: 150ms; }
+.stagger-child:nth-child(n + 7) { animation-delay: 170ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none;
+  }
+}

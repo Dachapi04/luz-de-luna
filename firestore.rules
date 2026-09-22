@@ -1,0 +1,53 @@
+rules_version = '2';
+
+/**
+ * Security model: every WRITE to every collection is denied to clients.
+ * All mutations (enviar pedido, cobrar, comprar, cerrar caja, alta/baja de
+ * usuarios y productos) go through Next.js route handlers using the
+ * Firebase Admin SDK — see src/lib/firestore/adminOps/** — which is the
+ * only thing with write access and re-checks the caller's role server
+ * side before touching Firestore. Rules here only gate READS by role.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+
+    // Every authenticated user can read their own profile; admins can
+    // read/list everyone (needed by the Usuarios screen).
+    match /usuarios/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || myRole() == 'admin');
+      allow write: if false;
+    }
+
+    // Menu/inventory: any authenticated role may read (mesero searches
+    // platillos, admin manages inventario, etc).
+    match /productos/{id} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Comandas: every role needs to read pedidos (mesas, comandas, cobro,
+    // ventas/resumen for admin).
+    match /pedidos/{id} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Compras and cierres de caja are admin-only screens.
+    match /compras/{id} {
+      allow read: if isSignedIn() && myRole() == 'admin';
+      allow write: if false;
+    }
+
+    match /cierresCaja/{id} {
+      allow read: if isSignedIn() && myRole() == 'admin';
+      allow write: if false;
+    }
+  }
+}
