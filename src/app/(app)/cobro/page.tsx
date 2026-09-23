@@ -74,7 +74,7 @@ export default function CobroPage() {
       setNota('');
       setMetodo('Efectivo');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo registrar el pago');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo registrar el pago', 'error');
     } finally {
       setCobrando(false);
     }

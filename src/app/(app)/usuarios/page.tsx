@@ -43,11 +43,11 @@ export default function UsuariosPage() {
 
   async function guardar() {
     if (!form.nombre.trim() || !form.usuario.trim()) {
-      show('Falta nombre o usuario');
+      show('Falta nombre o usuario', 'error');
       return;
     }
     if (form.pin && !/^\d{4,6}$/.test(form.pin)) {
-      show('El PIN debe tener entre 4 y 6 dígitos');
+      show('El PIN debe tener entre 4 y 6 dígitos', 'error');
       return;
     }
     setSaving(true);
@@ -57,7 +57,7 @@ export default function UsuariosPage() {
       show(editId ? 'Usuario actualizado' : 'Usuario creado');
       cancelar();
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el usuario');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el usuario', 'error');
     } finally {
       setSaving(false);
     }
@@ -66,7 +66,7 @@ export default function UsuariosPage() {
   async function eliminar(u: Usuario) {
     const last = u.rol === 'admin' && admins === 1;
     if (last) {
-      show('No se puede eliminar al último admin');
+      show('No se puede eliminar al último admin', 'error');
       return;
     }
     const ok = await confirm({ title: 'Eliminar usuario', body: `¿Eliminar la cuenta de ${u.nombre} (@${u.usuario})?` });
@@ -75,7 +75,7 @@ export default function UsuariosPage() {
       await usuariosService.eliminar(u.id);
       show('Usuario eliminado');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el usuario');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el usuario', 'error');
     }
   }
 

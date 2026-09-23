@@ -4,14 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { useToast } from '@/components/ui/ToastProvider';
 import { Logo } from './Logo';
 import { VIEW_META, VIEWS_BY_ROLE, type ViewKey } from '@/domain/permissions';
 import { formatDateLong, todayStr } from '@/lib/utils/date';
 
 export function AppHeader({ wide, badges }: { wide: boolean; badges: Partial<Record<ViewKey, string>> }) {
   const { user, logout } = useAuth();
-  const { toast } = useToast();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -31,11 +29,6 @@ export function AppHeader({ wide, badges }: { wide: boolean; badges: Partial<Rec
             </div>
           </div>
         </div>
-        {toast && (
-          <div className="animate-scale-in rounded-full bg-ok px-[11px] py-1.5 font-mono text-[11px] text-ok-fg">
-            {toast}
-          </div>
-        )}
         <div className="font-mono text-[11px] text-muted">{formatDateLong(todayStr())}</div>
         <button
           onClick={async () => {

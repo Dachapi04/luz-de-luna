@@ -57,7 +57,7 @@ export default function InventarioPage() {
 
   async function guardar() {
     if (!form.nombre.trim()) {
-      show('Falta el nombre');
+      show('Falta el nombre', 'error');
       return;
     }
     setSaving(true);
@@ -80,7 +80,7 @@ export default function InventarioPage() {
       show(form.id ? 'Producto actualizado' : 'Producto creado');
       cancelar();
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el producto');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el producto', 'error');
     } finally {
       setSaving(false);
     }
@@ -96,7 +96,7 @@ export default function InventarioPage() {
       await productosService.eliminar(p.id);
       show('Producto eliminado');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el producto');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el producto', 'error');
     }
   }
 
@@ -104,7 +104,7 @@ export default function InventarioPage() {
     try {
       await productosService.ajustarStock(p.id, delta);
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo ajustar el stock');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo ajustar el stock', 'error');
     }
   }
 

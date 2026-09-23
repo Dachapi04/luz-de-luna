@@ -38,7 +38,7 @@ export default function ComandasPage() {
     try {
       await pedidosService.marcarListo(pedidoId, itemId, listo);
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo actualizar la línea');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo actualizar la línea', 'error');
     }
   }
 

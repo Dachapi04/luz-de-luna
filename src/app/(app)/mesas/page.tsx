@@ -61,7 +61,7 @@ export default function MesasPage() {
             <Button
               onClick={() => {
                 if (!customName.trim()) {
-                  show('Escribe un nombre de mesa');
+                  show('Escribe un nombre de mesa', 'error');
                   return;
                 }
                 goToPedido(customName.trim());

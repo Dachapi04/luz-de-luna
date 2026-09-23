@@ -40,7 +40,7 @@ export default function PedidoPage() {
   function pick(p: (typeof productos)[number]) {
     const disp = disponiblePlatillo(p, productos);
     if (disp <= 0) {
-      show(`Sin insumos para ${p.nombre}`);
+      show(`Sin insumos para ${p.nombre}`, 'error');
       return;
     }
     setCart((c) => addToCart(c, p));
@@ -55,7 +55,7 @@ export default function PedidoPage() {
 
   async function enviar() {
     if (!cart.length) {
-      show('No hay líneas por enviar');
+      show('No hay líneas por enviar', 'error');
       return;
     }
     setSending(true);
@@ -68,7 +68,7 @@ export default function PedidoPage() {
       setQuery('');
       show(`Comanda enviada · ${mesa}`);
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo enviar la comanda');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo enviar la comanda', 'error');
     } finally {
       setSending(false);
     }
@@ -82,7 +82,7 @@ export default function PedidoPage() {
       await accion(pin);
       return true;
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo completar la acción');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo completar la acción', 'error');
       return false;
     }
   }

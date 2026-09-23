@@ -43,7 +43,7 @@ export default function VentasPage() {
       await pedidosService.quitarItem(pedidoId, itemId);
       show('Línea quitada, inventario restituido');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo quitar la línea');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo quitar la línea', 'error');
     }
   }
 
@@ -57,7 +57,7 @@ export default function VentasPage() {
       await pedidosService.eliminar(id);
       show('Pedido eliminado');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el pedido');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar el pedido', 'error');
     }
   }
 

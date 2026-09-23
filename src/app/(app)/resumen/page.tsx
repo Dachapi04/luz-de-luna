@@ -59,7 +59,7 @@ export default function ResumenPage() {
       await cierresService.guardar(cierreFecha);
       show(`Cierre de ${cierreFecha} guardado`);
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el cierre');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar el cierre', 'error');
     } finally {
       setGuardando(false);
     }
@@ -70,7 +70,7 @@ export default function ResumenPage() {
       await descargarRespaldoExcel();
       show('Respaldo Excel generado');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo generar el respaldo');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo generar el respaldo', 'error');
     }
   }
 

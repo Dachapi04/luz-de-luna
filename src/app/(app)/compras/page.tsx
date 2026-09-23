@@ -35,7 +35,7 @@ export default function ComprasPage() {
 
   async function guardar() {
     if (!form.concepto.trim() || !form.total) {
-      show('Falta concepto o total');
+      show('Falta concepto o total', 'error');
       return;
     }
     setSaving(true);
@@ -51,7 +51,7 @@ export default function ComprasPage() {
       setForm(initialForm);
       show(insumoActualizado ? `Compra guardada · stock de ${insumoActualizado} actualizado` : 'Compra guardada');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar la compra');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo guardar la compra', 'error');
     } finally {
       setSaving(false);
     }
@@ -67,7 +67,7 @@ export default function ComprasPage() {
       await comprasService.eliminar(id);
       show('Compra eliminada');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar la compra');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo eliminar la compra', 'error');
     }
   }
 
