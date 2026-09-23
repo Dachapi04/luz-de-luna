@@ -15,13 +15,14 @@ export interface CartLineInput {
 }
 
 /**
- * Envía las líneas del carrito de un mesero: crea el pedido si la mesa
+ * Envía las líneas del carrito de quien esté tomando el pedido (mesero o
+ * cajero cargando una venta directa en caja): crea el pedido si la mesa
  * estaba libre o agrega líneas al pedido abierto existente, y descuenta el
  * inventario de cada insumo según receta. Todo en una transacción: si dos
- * meseros venden al mismo tiempo, Firestore reintenta la que pierde la
+ * personas venden al mismo tiempo, Firestore reintenta la que pierde la
  * carrera en vez de dejar el stock inconsistente.
  */
-export async function enviarPedido(mesero: Usuario, mesa: string, cart: CartLineInput[]): Promise<Pedido> {
+export async function enviarPedido(quienToma: Usuario, mesa: string, cart: CartLineInput[]): Promise<Pedido> {
   if (!cart.length) throw new ApiError(400, 'El carrito está vacío');
   const db = getAdminDb();
   const pedidosCol = db.collection('pedidos');
@@ -96,8 +97,8 @@ export async function enviarPedido(mesero: Usuario, mesa: string, cart: CartLine
       mesa,
       fecha: todayStr(),
       horaCreacion: nowHHmm(),
-      meseroId: mesero.id,
-      meseroNombre: mesero.nombre,
+      meseroId: quienToma.id,
+      meseroNombre: quienToma.nombre,
       pagado: false,
       items: nuevosItems,
       cobro: null,

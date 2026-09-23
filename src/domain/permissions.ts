@@ -18,7 +18,10 @@ export const VIEWS_BY_ROLE: Record<Rol, ViewKey[]> = {
   mesero: ['mesas', 'pedido'],
   cocina: ['comandas'],
   bartender: ['comandas'],
-  cajero: ['cobro'],
+  // El cajero cobra (pantalla de entrada) pero también puede tomar pedidos
+  // directamente en caja — mismo flujo que el mesero, para poder cobrar al
+  // instante lo que piden en el mostrador.
+  cajero: ['cobro', 'mesas', 'pedido'],
 };
 
 export const VIEW_META: Record<ViewKey, { label: string; subtitle: string; path: string }> = {
