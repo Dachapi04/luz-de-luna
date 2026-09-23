@@ -49,5 +49,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && myRole() == 'admin';
       allow write: if false;
     }
+
+    // PIN hashes de administrador: nunca legibles ni escribibles desde el
+    // cliente, ni siquiera por su propio dueño. Solo el Admin SDK (que
+    // ignora estas reglas) los toca, en src/lib/firestore/adminOps/adminPin.ts.
+    match /adminPins/{uid} {
+      allow read, write: if false;
+    }
   }
 }

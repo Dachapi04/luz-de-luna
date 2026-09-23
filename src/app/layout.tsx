@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Instrument_Sans, Spectral } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
+import { PinProvider } from '@/components/ui/PinProvider';
 import './globals.css';
 
 const instrumentSans = Instrument_Sans({
@@ -45,7 +46,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans">
         <AuthProvider>
           <ToastProvider>
-            <ConfirmProvider>{children}</ConfirmProvider>
+            <ConfirmProvider>
+              <PinProvider>{children}</PinProvider>
+            </ConfirmProvider>
           </ToastProvider>
         </AuthProvider>
       </body>

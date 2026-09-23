@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosDesde } from '@/hooks/usePedidos';
+import { flattenPagos } from '@/domain/pedidos';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { Chip } from '@/components/ui/Chip';
@@ -27,16 +28,15 @@ export default function CobrosPage() {
   const desde = RANGOS.find((r) => r.key === range)!.desde;
   const { data: pedidos, loading } = usePedidosDesde(desde);
 
-  const cajeros = useMemo(
-    () => Array.from(new Set(pedidos.filter((p) => p.cobro).map((p) => p.cobro!.cajeroNombre))),
-    [pedidos]
-  );
+  const pagos = useMemo(() => flattenPagos(pedidos), [pedidos]);
 
-  const rows = pedidos
-    .filter((p) => p.pagado && p.cobro && (cajero === 'todos' || p.cobro.cajeroNombre === cajero))
-    .sort((a, b) => (b.fecha + b.horaCreacion > a.fecha + a.horaCreacion ? 1 : -1));
+  const cajeros = useMemo(() => Array.from(new Set(pagos.map((p) => p.cajeroNombre))), [pagos]);
 
-  const sum = (m: MetodoPago) => rows.filter((p) => p.cobro!.metodoPago === m).reduce((a, p) => a + p.cobro!.total, 0);
+  const rows = pagos
+    .filter((p) => cajero === 'todos' || p.cajeroNombre === cajero)
+    .sort((a, b) => (b.fecha + b.fechaHora > a.fecha + a.fechaHora ? 1 : -1));
+
+  const sum = (m: MetodoPago) => rows.filter((p) => p.metodoPago === m).reduce((a, p) => a + p.monto, 0);
   const metodoColor = (m: MetodoPago) => (m === 'Efectivo' ? 'text-warn-fg' : m === 'Sinpe' ? 'text-luna-fg' : 'text-ok-fg');
 
   return (
@@ -69,7 +69,7 @@ export default function CobrosPage() {
               <span>Mesa</span>
               <span>Cajero</span>
               <span>Método</span>
-              <span className="text-right">Total</span>
+              <span className="text-right">Monto</span>
               <span className="text-right">Recibido</span>
               <span className="text-right">Vuelto</span>
             </div>
@@ -78,20 +78,21 @@ export default function CobrosPage() {
             ) : (
               rows.map((p) => (
                 <div
-                  key={p.id}
+                  key={p.pedidoId + p.id}
                   className="grid grid-cols-[repeat(auto-fit,minmax(88px,1fr))] items-center gap-2.5 border-t border-border px-3.5 py-3 text-[13px]"
                 >
                   <span>
-                    <span className="block font-semibold">{p.mesa}</span>
-                    <span className="block font-mono text-[10px] text-muted-2">
-                      {p.fecha} {p.horaCreacion}
+                    <span className="block font-semibold">
+                      {p.mesa}
+                      {p.nota && <span className="font-normal text-muted-2"> · {p.nota}</span>}
                     </span>
+                    <span className="block font-mono text-[10px] text-muted-2">{p.fecha}</span>
                   </span>
-                  <span className="text-xs text-text-soft">{p.cobro!.cajeroNombre}</span>
-                  <span className={`font-mono text-xs ${metodoColor(p.cobro!.metodoPago)}`}>{p.cobro!.metodoPago}</span>
-                  <span className="text-right font-mono">{formatMoney(p.cobro!.total)}</span>
-                  <span className="text-right font-mono text-muted">{formatMoney(p.cobro!.recibido)}</span>
-                  <span className="text-right font-mono text-muted">{formatMoney(p.cobro!.vuelto)}</span>
+                  <span className="text-xs text-text-soft">{p.cajeroNombre}</span>
+                  <span className={`font-mono text-xs ${metodoColor(p.metodoPago)}`}>{p.metodoPago}</span>
+                  <span className="text-right font-mono">{formatMoney(p.monto)}</span>
+                  <span className="text-right font-mono text-muted">{formatMoney(p.recibido)}</span>
+                  <span className="text-right font-mono text-muted">{formatMoney(p.vuelto)}</span>
                 </div>
               ))
             )}
@@ -99,7 +100,7 @@ export default function CobrosPage() {
           <div className="mt-3.5 flex flex-wrap gap-5 font-mono text-[13px]">
             <div>
               <span className="text-muted">Total </span>
-              <span>{formatMoney(rows.reduce((a, p) => a + p.cobro!.total, 0))}</span>
+              <span>{formatMoney(rows.reduce((a, p) => a + p.monto, 0))}</span>
             </div>
             <div>
               <span className="text-muted">Efectivo </span>

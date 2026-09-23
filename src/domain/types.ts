@@ -88,9 +88,23 @@ export interface PedidoItem {
   listo: boolean;
 }
 
+/** Un abono al pagar en partes. "Mixto" solo aparece en el resumen agregado (Cobro), nunca se elige a mano. */
+export interface PagoParcial {
+  id: string;
+  monto: number; // lo que se aplica a la factura
+  metodoPago: MetodoPago;
+  recibido: number; // lo entregado; > monto en efectivo produce vuelto
+  vuelto: number;
+  nota: string; // quién pagó esa parte, texto libre, opcional ("Juan")
+  cajeroId: string;
+  cajeroNombre: string;
+  fechaHora: string; // ISO timestamp
+}
+
+/** Resumen final una vez el pedido queda completamente pagado (posible mezcla de métodos/pagadores). */
 export interface Cobro {
   total: number;
-  metodoPago: MetodoPago;
+  metodoPago: MetodoPago | 'Mixto';
   recibido: number;
   vuelto: number;
   cajeroId: string;
@@ -108,6 +122,8 @@ export interface Pedido {
   meseroNombre: string;
   pagado: boolean;
   items: PedidoItem[];
+  /** Abonos registrados hasta completar el total. Pedidos migrados del respaldo no lo tienen (ver `cobro`). */
+  pagos?: PagoParcial[];
   cobro: Cobro | null;
 }
 

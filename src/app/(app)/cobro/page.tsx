@@ -4,8 +4,8 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosAbiertos } from '@/hooks/usePedidos';
-import { pedidoAbierto, totalPedido } from '@/domain/pedidos';
-import { METODOS_PAGO, type MetodoPago } from '@/domain/types';
+import { pedidoAbierto, saldoPendiente, totalPagado, totalPedido } from '@/domain/pedidos';
+import { METODOS_PAGO, type MetodoPago, type Pedido } from '@/domain/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -24,25 +24,53 @@ export default function CobroPage() {
   const { data: abiertos, loading } = usePedidosAbiertos();
   const [selMesa, setSelMesa] = useState<string | null>(null);
   const [metodo, setMetodo] = useState<MetodoPago>('Efectivo');
+  const [montoStr, setMontoStr] = useState('');
   const [recibidoStr, setRecibidoStr] = useState('');
+  const [nota, setNota] = useState('');
   const [cobrando, setCobrando] = useState(false);
 
   const pedido = selMesa ? pedidoAbierto(abiertos, selMesa) : undefined;
   const total = pedido ? totalPedido(pedido) : 0;
-  const recibido = metodo === 'Efectivo' ? parseNumeric(recibidoStr) : total;
-  const vuelto = Math.max(recibido - total, 0);
+  const pagado = pedido ? totalPagado(pedido) : 0;
+  const falta = pedido ? saldoPendiente(pedido) : 0;
+  const pagosPrevios = pedido?.pagos ?? [];
 
-  async function cobrar() {
-    if (!pedido || !selMesa) return;
+  const monto = parseNumeric(montoStr);
+  const recibido = metodo === 'Efectivo' ? parseNumeric(recibidoStr) : monto;
+  const vuelto = Math.max(recibido - monto, 0);
+  const excedeSaldo = monto - falta > 0.01;
+
+  function seleccionar(p: Pedido) {
+    setSelMesa(p.mesa);
+    setMetodo('Efectivo');
+    setMontoStr(String(saldoPendiente(p)));
+    setRecibidoStr('');
+    setNota('');
+  }
+
+  async function registrar() {
+    if (!pedido || !selMesa || monto <= 0) return;
     setCobrando(true);
     try {
-      await pedidosService.cobrar(selMesa, metodo, recibido);
-      show(`${selMesa} cobrada · ${formatMoney(total)}`);
-      setSelMesa(null);
+      const resultado = await pedidosService.registrarPago(selMesa, {
+        monto,
+        metodoPago: metodo,
+        nota: nota.trim() || undefined,
+        recibido: metodo === 'Efectivo' ? recibido : undefined,
+      });
+      if (resultado.pagado) {
+        show(`${selMesa} cobrada por completo · ${formatMoney(total)}`);
+        setSelMesa(null);
+      } else {
+        const nuevaFalta = saldoPendiente(resultado);
+        show(`Abono de ${formatMoney(monto)} registrado · falta ${formatMoney(nuevaFalta)}`);
+        setMontoStr(String(nuevaFalta));
+      }
       setRecibidoStr('');
+      setNota('');
       setMetodo('Efectivo');
     } catch (err) {
-      show(err instanceof ApiClientError ? err.message : 'No se pudo cobrar la mesa');
+      show(err instanceof ApiClientError ? err.message : 'No se pudo registrar el pago');
     } finally {
       setCobrando(false);
     }
@@ -63,14 +91,12 @@ export default function CobroPage() {
             <div className="flex flex-col gap-2.5">
               {abiertos.map((p) => {
                 const on = selMesa === p.mesa;
+                const faltaP = saldoPendiente(p);
+                const tienePagos = (p.pagos?.length ?? 0) > 0;
                 return (
                   <button
                     key={p.id}
-                    onClick={() => {
-                      setSelMesa(p.mesa);
-                      setRecibidoStr('');
-                      setMetodo('Efectivo');
-                    }}
+                    onClick={() => seleccionar(p)}
                     className={clsx(
                       'transition-base press-scale flex items-center justify-between gap-2.5 rounded-lg border p-3.5 text-left',
                       on ? 'border-gold bg-[oklch(0.27_0.045_70)]' : 'border-border bg-surface hover:border-gold'
@@ -80,9 +106,10 @@ export default function CobroPage() {
                       <span className="block font-serif text-lg font-semibold">{p.mesa}</span>
                       <span className="block font-mono text-[11px] text-muted-2">
                         {p.horaCreacion} · {p.meseroNombre} · {p.items.length} líneas
+                        {tienePagos && ' · con abonos'}
                       </span>
                     </span>
-                    <span className="font-mono text-sm text-gold">{formatMoney(totalPedido(p))}</span>
+                    <span className="font-mono text-sm text-gold">{formatMoney(faltaP)}</span>
                   </button>
                 );
               })}
@@ -112,11 +139,45 @@ export default function CobroPage() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-baseline justify-between py-3 font-mono">
-                <span className="text-[13px]">Total</span>
-                <span className="text-2xl text-gold">{formatMoney(total)}</span>
+
+              {pagosPrevios.length > 0 && (
+                <div className="flex flex-col gap-1.5 border-b border-border py-3">
+                  <div className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Abonado</div>
+                  {pagosPrevios.map((pg) => (
+                    <div key={pg.id} className="flex items-baseline gap-2.5 text-[13px]">
+                      <span className="min-w-0 flex-1 text-muted">
+                        {pg.nota || 'Pago'} <span className="font-mono text-[11px] text-muted-2">· {pg.metodoPago}</span>
+                      </span>
+                      <span className="font-mono text-ok-fg">{formatMoney(pg.monto)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1 py-3 font-mono">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] text-muted">Total</span>
+                  <span className="text-sm">{formatMoney(total)}</span>
+                </div>
+                {pagado > 0 && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[13px] text-muted">Pagado</span>
+                    <span className="text-sm text-ok-fg">{formatMoney(pagado)}</span>
+                  </div>
+                )}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px]">Falta</span>
+                  <span className="text-2xl text-gold">{formatMoney(falta)}</span>
+                </div>
               </div>
+
               <div className="flex flex-col gap-3.5">
+                <Input
+                  label="¿Quién paga? (opcional)"
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  placeholder="Juan, Pedro, Mónica…"
+                />
                 <div>
                   <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Método de pago</div>
                   <div className="flex flex-wrap gap-1.5">
@@ -127,27 +188,44 @@ export default function CobroPage() {
                     ))}
                   </div>
                 </div>
-                {metodo === 'Efectivo' && (
-                  <div className="flex flex-wrap items-end gap-3.5">
-                    <Input
-                      label="Recibido"
-                      mono
-                      value={recibidoStr}
-                      onChange={(e) => setRecibidoStr(e.target.value)}
-                      placeholder="0"
-                      wrapperClassName="w-[150px]"
-                    />
-                    <div className={clsx('pb-[11px] font-mono text-sm', recibido && recibido < total ? 'text-bad-fg' : 'text-text')}>
-                      Vuelto {formatMoney(vuelto)}
-                    </div>
-                  </div>
+                <div className="flex flex-wrap items-end gap-3.5">
+                  <Input
+                    label="Monto a abonar"
+                    mono
+                    value={montoStr}
+                    onChange={(e) => setMontoStr(e.target.value)}
+                    placeholder="0"
+                    wrapperClassName="w-[150px]"
+                  />
+                  {metodo === 'Efectivo' && (
+                    <>
+                      <Input
+                        label="Recibido"
+                        mono
+                        value={recibidoStr}
+                        onChange={(e) => setRecibidoStr(e.target.value)}
+                        placeholder="0"
+                        wrapperClassName="w-[150px]"
+                      />
+                      <div className={clsx('pb-[11px] font-mono text-sm', recibido && recibido < monto ? 'text-bad-fg' : 'text-text')}>
+                        Vuelto {formatMoney(vuelto)}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {excedeSaldo && (
+                  <div className="font-mono text-xs text-bad-fg">El monto no puede superar el saldo pendiente ({formatMoney(falta)}).</div>
                 )}
                 <Button
-                  disabled={cobrando || (metodo === 'Efectivo' && recibido < total)}
-                  onClick={cobrar}
+                  disabled={cobrando || monto <= 0 || excedeSaldo || (metodo === 'Efectivo' && recibido < monto)}
+                  onClick={registrar}
                   className="py-3.5 text-[15px]"
                 >
-                  {cobrando ? 'Cobrando…' : `Cobrar ${formatMoney(total)} · ${metodo}`}
+                  {cobrando
+                    ? 'Registrando…'
+                    : monto >= falta && falta > 0
+                      ? `Cobrar ${formatMoney(monto)} · ${metodo}`
+                      : `Abonar ${formatMoney(monto)} · ${metodo}`}
                 </Button>
               </div>
             </>

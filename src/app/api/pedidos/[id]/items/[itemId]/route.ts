@@ -1,26 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole, requireUser } from '@/lib/auth/session';
-import { withApiErrors } from '@/lib/api/http';
-import { marcarListo, quitarItemPedido } from '@/lib/firestore/adminOps/pedidos';
+import { requireUser } from '@/lib/auth/session';
+import { ApiError, withApiErrors } from '@/lib/api/http';
+import { editarCantidadItem, marcarListo, quitarItemPedido } from '@/lib/firestore/adminOps/pedidos';
+import { authorizeOrPin } from '@/lib/firestore/adminOps/adminPin';
 
 interface Params {
   params: { id: string; itemId: string };
 }
 
-/** Cocina/bartender tachan un producto; admin puede hacerlo por cualquiera. */
+/**
+ * PATCH hace dos cosas distintas según el body:
+ *  - { listo }: cocina/bartender tachan un producto (o admin, por cualquiera).
+ *  - { cantidad, pin? }: mesero/cajero (con PIN de admin) o admin cambian
+ *    la cantidad de una línea ya enviada — eliminar la mesa/quitar un
+ *    producto/editar cantidad son la misma clase de corrección "de piso".
+ */
 export const PATCH = withApiErrors(async (req: NextRequest, { params }: Params) => {
   const user = await requireUser(req);
-  if (!['cocina', 'bartender', 'admin'].includes(user.rol)) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  const body = (await req.json()) as { listo?: boolean; cantidad?: number; pin?: string };
+
+  if (typeof body.listo === 'boolean') {
+    if (!['cocina', 'bartender', 'admin'].includes(user.rol)) {
+      throw new ApiError(403, 'No autorizado');
+    }
+    await marcarListo(params.id, params.itemId, body.listo, user.rol);
+    return new NextResponse(null, { status: 204 });
   }
-  const { listo } = (await req.json()) as { listo: boolean };
-  await marcarListo(params.id, params.itemId, !!listo, user.rol);
-  return new NextResponse(null, { status: 204 });
+
+  if (typeof body.cantidad === 'number') {
+    if (!['mesero', 'cajero', 'admin'].includes(user.rol)) throw new ApiError(403, 'No autorizado');
+    await authorizeOrPin(user, body.pin);
+    await editarCantidadItem(params.id, params.itemId, body.cantidad);
+    return new NextResponse(null, { status: 204 });
+  }
+
+  throw new ApiError(400, 'Falta "listo" o "cantidad" en el cuerpo de la petición');
 });
 
-/** Quitar una línea de un pedido ya enviado (panel de Ventas) — solo admin. */
+/** Quitar una línea de un pedido ya enviado — admin libre, mesero/cajero con PIN de admin. */
 export const DELETE = withApiErrors(async (req: NextRequest, { params }: Params) => {
-  await requireRole(req, ['admin']);
+  const user = await requireUser(req);
+  if (!['mesero', 'cajero', 'admin'].includes(user.rol)) throw new ApiError(403, 'No autorizado');
+  const { pin } = (await req.json().catch(() => ({}))) as { pin?: string };
+  await authorizeOrPin(user, pin);
   await quitarItemPedido(params.id, params.itemId);
   return new NextResponse(null, { status: 204 });
 });

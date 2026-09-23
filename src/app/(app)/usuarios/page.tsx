@@ -16,7 +16,7 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { usuariosService } from '@/services/usuariosService';
 import { ApiClientError } from '@/lib/api/client';
 
-const emptyForm = { nombre: '', usuario: '', clave: '', rol: 'mesero' as Rol };
+const emptyForm = { nombre: '', usuario: '', clave: '', rol: 'mesero' as Rol, pin: '' };
 
 export default function UsuariosPage() {
   useViewGuard('usuarios');
@@ -33,7 +33,7 @@ export default function UsuariosPage() {
 
   function editar(u: Usuario) {
     setEditId(u.id);
-    setForm({ nombre: u.nombre, usuario: u.usuario, clave: '', rol: u.rol });
+    setForm({ nombre: u.nombre, usuario: u.usuario, clave: '', rol: u.rol, pin: '' });
   }
 
   function cancelar() {
@@ -44,6 +44,10 @@ export default function UsuariosPage() {
   async function guardar() {
     if (!form.nombre.trim() || !form.usuario.trim()) {
       show('Falta nombre o usuario');
+      return;
+    }
+    if (form.pin && !/^\d{4,6}$/.test(form.pin)) {
+      show('El PIN debe tener entre 4 y 6 dígitos');
       return;
     }
     setSaving(true);
@@ -139,7 +143,24 @@ export default function UsuariosPage() {
               onChange={set('rol')}
               options={ROLES.map((r) => ({ value: r, label: r }))}
             />
+            {form.rol === 'admin' && (
+              <Input
+                label="PIN de autorización"
+                wrapperClassName="col-span-full"
+                value={form.pin}
+                onChange={set('pin')}
+                placeholder={editId ? 'dejar en blanco para no cambiar' : '4 a 6 dígitos, opcional'}
+                inputMode="numeric"
+                maxLength={6}
+              />
+            )}
           </div>
+          {form.rol === 'admin' && (
+            <div className="mt-1.5 text-xs leading-relaxed text-muted">
+              Este PIN lo puede usar mesero o cajero para autorizar cambios en una comanda ya enviada (quitar un
+              producto, cambiar cantidad o eliminar la mesa) sin necesitar tu usuario y contraseña.
+            </div>
+          )}
           <div className="mt-3.5 flex gap-2.5">
             <Button fullWidth disabled={saving} onClick={guardar}>
               {saving ? 'Guardando…' : editId ? 'Guardar cambios' : 'Crear usuario'}

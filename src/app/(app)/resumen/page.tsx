@@ -5,7 +5,7 @@ import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosDesde, usePedidosDelDia } from '@/hooks/usePedidos';
 import { useCompras } from '@/hooks/useCompras';
 import { useCierre } from '@/hooks/useCierre';
-import { totalesPeriodo, desglosePorProducto } from '@/domain/pedidos';
+import { totalesPeriodo, desglosePorProducto, montoPorMetodo } from '@/domain/pedidos';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { Chip } from '@/components/ui/Chip';
@@ -50,8 +50,8 @@ export default function ResumenPage() {
   const fechas = Array.from(new Set([todayStr(), ...pedidos.map((p) => p.fecha)])).sort().reverse();
 
   const cobrosDia = pedidosCierreDia.filter((p) => p.pagado && p.cobro);
-  const porMetodo = (m: MetodoPago) => cobrosDia.filter((p) => p.cobro!.metodoPago === m).reduce((a, p) => a + p.cobro!.total, 0);
-  const vendidoDia = cobrosDia.reduce((a, p) => a + p.cobro!.total, 0);
+  const porMetodo = (m: MetodoPago) => cobrosDia.reduce((a, p) => a + montoPorMetodo(p, m), 0);
+  const vendidoDia = cobrosDia.reduce((a, p) => a + (p.cobro?.total ?? 0), 0);
   const compradoDia = compras.filter((c) => c.fecha === cierreFecha).reduce((a, c) => a + c.total, 0);
   const gananciaDia = vendidoDia - compradoDia;
 

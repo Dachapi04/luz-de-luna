@@ -2,6 +2,7 @@ import 'server-only';
 import * as XLSX from 'xlsx';
 import { getAdminDb } from '@/config/firebase.admin';
 import type { CierreCaja, Compra, Pedido, Producto, Usuario } from '@/domain/types';
+import { pagosDe } from '@/domain/pedidos';
 
 /** Respaldo completo del negocio: una hoja por colección. */
 export async function buildBackupWorkbook(): Promise<Buffer> {
@@ -59,17 +60,20 @@ export async function buildBackupWorkbook(): Promise<Buffer> {
         listo: i.listo,
       });
     });
-    if (p.cobro) {
-      cobrosRows.push({
-        pedidoId: p.id,
-        mesa: p.mesa,
-        fecha: p.fecha,
-        total: p.cobro.total,
-        metodoPago: p.cobro.metodoPago,
-        recibido: p.cobro.recibido,
-        vuelto: p.cobro.vuelto,
-        cajero: p.cobro.cajeroNombre,
-        fechaHora: p.cobro.fechaHora,
+    if (p.pagado) {
+      pagosDe(p).forEach((pg) => {
+        cobrosRows.push({
+          pedidoId: p.id,
+          mesa: p.mesa,
+          fecha: p.fecha,
+          nota: pg.nota,
+          monto: pg.monto,
+          metodoPago: pg.metodoPago,
+          recibido: pg.recibido,
+          vuelto: pg.vuelto,
+          cajero: pg.cajeroNombre,
+          fechaHora: pg.fechaHora,
+        });
       });
     }
   });

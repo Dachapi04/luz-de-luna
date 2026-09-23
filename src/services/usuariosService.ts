@@ -8,6 +8,8 @@ export interface UsuarioInput {
   usuario: string;
   clave?: string;
   rol: Rol;
+  /** PIN de 4-6 dígitos (solo admins) para autorizar cambios de mesero/cajero. Vacío = no tocar el actual. */
+  pin?: string;
 }
 
 export const usuariosService = {

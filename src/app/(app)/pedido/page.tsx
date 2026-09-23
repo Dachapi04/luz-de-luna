@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosAbiertos } from '@/hooks/usePedidos';
 import { useProductos } from '@/hooks/useProductos';
@@ -18,12 +18,16 @@ import { SentLines } from '@/components/pedido/SentLines';
 import { addToCart, type CartLine } from '@/components/pedido/cart';
 import { formatMoney } from '@/lib/utils/money';
 import { useToast } from '@/components/ui/ToastProvider';
+import { usePinPrompt } from '@/components/ui/PinProvider';
 import { pedidosService } from '@/services/pedidosService';
 import { ApiClientError } from '@/lib/api/client';
+import type { PedidoItem } from '@/domain/types';
 
 export default function PedidoPage() {
   useViewGuard('pedido');
+  const router = useRouter();
   const { show } = useToast();
+  const pinPrompt = usePinPrompt();
   const mesa = useSearchParams().get('mesa') ?? '';
   const { data: abiertos } = usePedidosAbiertos();
   const { data: productos } = useProductos();
@@ -67,6 +71,52 @@ export default function PedidoPage() {
       show(err instanceof ApiClientError ? err.message : 'No se pudo enviar la comanda');
     } finally {
       setSending(false);
+    }
+  }
+
+  /** Pide el PIN de un administrador y solo entonces ejecuta la acción. */
+  async function autorizarYEjecutar(titulo: string, cuerpo: string, accion: (pin: string) => Promise<void>) {
+    const pin = await pinPrompt(titulo, cuerpo);
+    if (!pin) return false;
+    try {
+      await accion(pin);
+      return true;
+    } catch (err) {
+      show(err instanceof ApiClientError ? err.message : 'No se pudo completar la acción');
+      return false;
+    }
+  }
+
+  async function onCambiarCantidad(item: PedidoItem, nuevaCantidad: number) {
+    if (!pedido || nuevaCantidad < 1) return;
+    const ok = await autorizarYEjecutar(
+      'Cambiar cantidad',
+      `Cambiar "${item.producto}" de ${item.cantidad} a ${nuevaCantidad}. Pídele el PIN a un administrador.`,
+      (pin) => pedidosService.cambiarCantidad(pedido.id, item.id, nuevaCantidad, pin)
+    );
+    if (ok) show('Cantidad actualizada');
+  }
+
+  async function onQuitarItem(item: PedidoItem) {
+    if (!pedido) return;
+    const ok = await autorizarYEjecutar(
+      'Quitar producto',
+      `Quitar "${item.producto}" del pedido de ${mesa}. Se restituye el inventario. Pídele el PIN a un administrador.`,
+      (pin) => pedidosService.quitarItem(pedido.id, item.id, pin)
+    );
+    if (ok) show('Producto quitado');
+  }
+
+  async function onEliminarMesa() {
+    if (!pedido) return;
+    const ok = await autorizarYEjecutar(
+      'Eliminar mesa',
+      `Eliminar todo el pedido de ${mesa} y dejar la mesa libre. Se restituye el inventario. Pídele el PIN a un administrador.`,
+      (pin) => pedidosService.eliminar(pedido.id, pin)
+    );
+    if (ok) {
+      show(`Mesa ${mesa} eliminada`);
+      router.push('/mesas');
     }
   }
 
@@ -117,14 +167,29 @@ export default function PedidoPage() {
             </div>
 
             <div className="rounded-lg border border-border bg-surface-sunken p-[15px]">
-              <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
-                Ya pedido en esta mesa
+              <div className="mb-2.5 flex items-center justify-between gap-2.5">
+                <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
+                  Ya pedido en esta mesa
+                </div>
+                {pedido && (
+                  <button
+                    onClick={onEliminarMesa}
+                    className="transition-fast cursor-pointer rounded-[7px] border border-border-strong bg-transparent px-2.5 py-1 text-[11px] text-[oklch(0.72_0.08_30)] hover:border-[oklch(0.6_0.14_30)]"
+                  >
+                    Eliminar mesa
+                  </button>
+                )}
               </div>
-              <SentLines items={pedido?.items ?? []} />
+              <SentLines items={pedido?.items ?? []} onCambiarCantidad={onCambiarCantidad} onQuitar={onQuitarItem} />
               <div className="mt-3.5 flex items-baseline justify-between border-t border-border pt-2.5 font-mono">
                 <span className="text-xs">Total mesa</span>
                 <span className="text-lg">{formatMoney(pedido ? totalPedido(pedido) : 0)}</span>
               </div>
+              {pedido && (
+                <div className="mt-2.5 text-[11px] leading-relaxed text-muted-2">
+                  Cambiar cantidad, quitar un producto o eliminar la mesa necesita el PIN de un administrador.
+                </div>
+              )}
             </div>
           </section>
         </div>

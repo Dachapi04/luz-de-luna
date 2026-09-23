@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { Pedido } from '@/domain/types';
-import { totalPedido } from '@/domain/pedidos';
+import { pagosDe, totalPedido } from '@/domain/pedidos';
 import { Badge } from '@/components/ui/Badge';
 import { formatMoney } from '@/lib/utils/money';
 
@@ -62,10 +62,15 @@ export function VentaCard({
               )}
             </div>
           ))}
-          {pedido.cobro && (
-            <div className="pt-1 font-mono text-[11px] text-muted">
-              Cobro {pedido.cobro.metodoPago} · recibido {formatMoney(pedido.cobro.recibido)} · vuelto{' '}
-              {formatMoney(pedido.cobro.vuelto)} · {pedido.cobro.cajeroNombre}
+          {pedido.pagado && pagosDe(pedido).length > 0 && (
+            <div className="flex flex-col gap-0.5 pt-1 font-mono text-[11px] text-muted">
+              {pagosDe(pedido).map((pg) => (
+                <div key={pg.id}>
+                  {pg.nota ? `${pg.nota} · ` : ''}
+                  {formatMoney(pg.monto)} · {pg.metodoPago}
+                  {pg.vuelto > 0 ? ` · vuelto ${formatMoney(pg.vuelto)}` : ''} · {pg.cajeroNombre}
+                </div>
+              ))}
             </div>
           )}
         </div>

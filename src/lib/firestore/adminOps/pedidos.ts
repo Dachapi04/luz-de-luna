@@ -2,7 +2,7 @@ import 'server-only';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/config/firebase.admin';
 import { ApiError } from '@/lib/api/http';
-import type { Destino, MetodoPago, Pedido, PedidoItem, Producto, Usuario } from '@/domain/types';
+import type { Destino, MetodoPago, PagoParcial, Pedido, PedidoItem, Producto, Usuario } from '@/domain/types';
 import { todayStr, nowHHmm } from '@/lib/utils/date';
 import { newId } from '@/lib/utils/id';
 import { round3 } from '@/domain/inventory';
@@ -101,6 +101,7 @@ export async function enviarPedido(quienToma: Usuario, mesa: string, cart: CartL
       meseroNombre: quienToma.nombre,
       pagado: false,
       items: nuevosItems,
+      pagos: [],
       cobro: null,
     };
     const ref = pedidosCol.doc();
@@ -145,6 +146,66 @@ export async function quitarItemPedido(pedidoId: string, itemId: string): Promis
   });
 }
 
+/**
+ * Cambia la cantidad de una línea ya enviada, ajustando el stock por la
+ * diferencia (puede subir o bajar). Si el producto ya no existe, se
+ * permite el cambio igual pero sin tocar inventario (no hay receta que
+ * consultar).
+ */
+export async function editarCantidadItem(pedidoId: string, itemId: string, nuevaCantidad: number): Promise<void> {
+  if (!Number.isFinite(nuevaCantidad) || nuevaCantidad < 1) {
+    throw new ApiError(400, 'La cantidad debe ser al menos 1');
+  }
+  const db = getAdminDb();
+  const pedidosCol = db.collection('pedidos');
+  const productosCol = db.collection('productos');
+  const ref = pedidosCol.doc(pedidoId);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new ApiError(404, 'Pedido no encontrado');
+    const pedido = snap.data() as Omit<Pedido, 'id'>;
+    if (pedido.pagado) throw new ApiError(409, 'El pedido ya está cobrado');
+    const item = pedido.items.find((i) => i.id === itemId);
+    if (!item) throw new ApiError(404, 'Línea no encontrada');
+
+    const diff = nuevaCantidad - item.cantidad; // > 0 sube, < 0 baja
+    if (diff !== 0) {
+      const platilloSnap = await tx.get(productosCol.doc(item.productoId));
+      const platillo = platilloSnap.exists
+        ? { id: platilloSnap.id, ...(platilloSnap.data() as Omit<Producto, 'id'>) }
+        : null;
+      const receta = platillo?.receta ?? [];
+
+      if (receta.length) {
+        const insumoSnaps = await Promise.all(receta.map((r) => tx.get(productosCol.doc(r.insumoId))));
+        const insumos = new Map<string, Producto>();
+        insumoSnaps.forEach((s) => {
+          if (s.exists) insumos.set(s.id, { id: s.id, ...(s.data() as Omit<Producto, 'id'>) });
+        });
+
+        if (diff > 0) {
+          for (const r of receta) {
+            const insumo = insumos.get(r.insumoId);
+            const necesarios = r.cantidad * diff;
+            if ((insumo?.cantidad ?? 0) < necesarios) {
+              throw new ApiError(409, `Insumo "${insumo?.nombre ?? r.insumoId}" no alcanza para aumentar la cantidad`);
+            }
+          }
+        }
+        for (const r of receta) {
+          tx.update(productosCol.doc(r.insumoId), { cantidad: FieldValue.increment(-r.cantidad * diff) });
+        }
+      }
+    }
+
+    const nuevoTotal = round3(item.precioUnitario * nuevaCantidad);
+    tx.update(ref, {
+      items: pedido.items.map((i) => (i.id === itemId ? { ...i, cantidad: nuevaCantidad, total: nuevoTotal } : i)),
+    });
+  });
+}
+
 export async function eliminarPedido(pedidoId: string): Promise<void> {
   const db = getAdminDb();
   const ref = db.collection('pedidos').doc(pedidoId);
@@ -183,12 +244,21 @@ export async function marcarListo(
   });
 }
 
-export async function cobrarPedido(
-  cajero: Usuario,
-  mesa: string,
-  metodoPago: MetodoPago,
-  recibidoInput: number
-): Promise<Pedido> {
+export interface RegistrarPagoInput {
+  monto: number;
+  metodoPago: MetodoPago;
+  nota?: string;
+  /** Solo relevante en Efectivo; si se omite se asume igual al monto (sin vuelto). */
+  recibido?: number;
+}
+
+/**
+ * Registra un abono a la cuenta de una mesa. Si con este abono se cubre el
+ * total, marca el pedido como pagado y arma el resumen `cobro` (mezclando
+ * métodos si hubo varios abonos con métodos distintos). Si todavía falta
+ * saldo, el pedido sigue abierto para seguir abonando.
+ */
+export async function registrarPago(cajero: Usuario, mesa: string, input: RegistrarPagoInput): Promise<Pedido> {
   const db = getAdminDb();
   const pedidosCol = db.collection('pedidos');
   return db.runTransaction(async (tx) => {
@@ -196,21 +266,54 @@ export async function cobrarPedido(
     if (openSnap.empty) throw new ApiError(404, 'No hay pedido abierto para esa mesa');
     const doc = openSnap.docs[0]!;
     const pedido = { id: doc.id, ...(doc.data() as Omit<Pedido, 'id'>) } as Pedido;
+
     const total = round3(pedido.items.reduce((a, i) => a + i.total, 0));
-    const recibido = metodoPago === 'Efectivo' ? recibidoInput : total;
-    if (metodoPago === 'Efectivo' && recibido < total) {
-      throw new ApiError(400, 'El monto recibido no cubre el total');
+    const pagosPrevios = pedido.pagos ?? [];
+    const pagadoPrevio = round3(pagosPrevios.reduce((a, p) => a + p.monto, 0));
+    const falta = round3(Math.max(0, total - pagadoPrevio));
+    if (falta <= 0) throw new ApiError(409, 'Este pedido ya está completamente pagado');
+
+    const monto = round3(Number(input.monto) || 0);
+    if (monto <= 0) throw new ApiError(400, 'El monto debe ser mayor a cero');
+    if (monto - falta > 0.01) throw new ApiError(400, `El monto excede el saldo pendiente (${falta})`);
+
+    const recibido = input.metodoPago === 'Efectivo' ? round3(Number(input.recibido ?? monto) || 0) : monto;
+    if (input.metodoPago === 'Efectivo' && recibido < monto) {
+      throw new ApiError(400, 'El monto recibido no cubre el abono');
     }
-    const cobro = {
-      total,
-      metodoPago,
+
+    const nuevoPago: PagoParcial = {
+      id: newId('pg'),
+      monto,
+      metodoPago: input.metodoPago,
       recibido,
-      vuelto: round3(recibido - total),
+      vuelto: round3(recibido - monto),
+      nota: input.nota?.trim() ?? '',
       cajeroId: cajero.id,
       cajeroNombre: cajero.nombre,
       fechaHora: new Date().toISOString(),
     };
-    tx.update(doc.ref, { pagado: true, cobro });
-    return { ...pedido, pagado: true, cobro };
+
+    const pagos = [...pagosPrevios, nuevoPago];
+    const totalPagado = round3(pagos.reduce((a, p) => a + p.monto, 0));
+    const completo = round3(total - totalPagado) <= 0.01;
+
+    const update: { pagos: PagoParcial[]; pagado?: true; cobro?: Pedido['cobro'] } = { pagos };
+    if (completo) {
+      const metodosUnicos = Array.from(new Set(pagos.map((p) => p.metodoPago)));
+      update.pagado = true;
+      update.cobro = {
+        total,
+        metodoPago: metodosUnicos.length === 1 ? metodosUnicos[0]! : 'Mixto',
+        recibido: round3(pagos.reduce((a, p) => a + p.recibido, 0)),
+        vuelto: round3(pagos.reduce((a, p) => a + p.vuelto, 0)),
+        cajeroId: cajero.id,
+        cajeroNombre: cajero.nombre,
+        fechaHora: new Date().toISOString(),
+      };
+    }
+
+    tx.update(doc.ref, update);
+    return { ...pedido, ...update };
   });
 }

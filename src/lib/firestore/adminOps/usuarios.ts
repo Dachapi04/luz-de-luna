@@ -4,12 +4,15 @@ import { ApiError } from '@/lib/api/http';
 import type { Rol, Usuario } from '@/domain/types';
 import { norm } from '@/lib/utils/normalize';
 import { usernameToAuthEmail } from '@/config/env';
+import { deleteAdminPin, setAdminPin } from './adminPin';
 
 export interface UsuarioInput {
   nombre: string;
   usuario: string;
   clave?: string;
   rol: Rol;
+  /** PIN de 4-6 dígitos para autorizar cambios de mesero/cajero. Vacío/omitido = no tocar el actual. Solo admins. */
+  pin?: string;
 }
 
 async function assertUsuarioUnico(usuario: string, excludeId?: string) {
@@ -43,8 +46,12 @@ export async function crearUsuario(input: UsuarioInput): Promise<Usuario> {
   };
   try {
     await getAdminDb().collection('usuarios').doc(authUser.uid).set(doc);
+    if (input.pin) {
+      if (input.rol !== 'admin') throw new ApiError(400, 'Solo un admin puede tener PIN de autorización');
+      await setAdminPin(authUser.uid, input.pin);
+    }
   } catch (err) {
-    // roll back the orphaned Auth account if the Firestore write fails
+    // roll back the orphaned Auth account if any later step fails
     await auth.deleteUser(authUser.uid).catch(() => undefined);
     throw err;
   }
@@ -76,6 +83,14 @@ export async function editarUsuario(id: string, input: UsuarioInput): Promise<Us
 
   const doc: Omit<Usuario, 'id'> = { nombre: input.nombre.trim(), usuario: input.usuario.trim(), rol: input.rol };
   await ref.set(doc);
+
+  if (input.pin) {
+    if (input.rol !== 'admin') throw new ApiError(400, 'Solo un admin puede tener PIN de autorización');
+    await setAdminPin(id, input.pin);
+  }
+  // el rol dejó de ser admin: su PIN, si tenía, ya no debe poder autorizar nada
+  if (actual.rol === 'admin' && input.rol !== 'admin') await deleteAdminPin(id);
+
   return { id, ...doc };
 }
 
@@ -92,5 +107,6 @@ export async function eliminarUsuario(id: string): Promise<void> {
   }
 
   await getAdminAuth().deleteUser(id).catch(() => undefined);
+  await deleteAdminPin(id);
   await ref.delete();
 }
