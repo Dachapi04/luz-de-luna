@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { SkeletonRows } from '@/components/ui/Spinner';
 import { formatMoney, parseNumeric } from '@/lib/utils/money';
+import { todayStr } from '@/lib/utils/date';
 import { useToast } from '@/components/ui/ToastProvider';
 import { pedidosService } from '@/services/pedidosService';
 import { ApiClientError } from '@/lib/api/client';
@@ -27,6 +28,7 @@ export default function CobroPage() {
   const [montoStr, setMontoStr] = useState('');
   const [recibidoStr, setRecibidoStr] = useState('');
   const [nota, setNota] = useState('');
+  const [fechaVenta, setFechaVenta] = useState(todayStr());
   const [cobrando, setCobrando] = useState(false);
 
   const pedido = selMesa ? pedidoAbierto(abiertos, selMesa) : undefined;
@@ -46,6 +48,7 @@ export default function CobroPage() {
     setMontoStr(String(saldoPendiente(p)));
     setRecibidoStr('');
     setNota('');
+    setFechaVenta(todayStr());
   }
 
   async function registrar() {
@@ -57,6 +60,7 @@ export default function CobroPage() {
         metodoPago: metodo,
         nota: nota.trim() || undefined,
         recibido: metodo === 'Efectivo' ? recibido : undefined,
+        fecha: fechaVenta || undefined,
       });
       if (resultado.pagado) {
         show(`${selMesa} cobrada por completo · ${formatMoney(total)}`);
@@ -172,12 +176,23 @@ export default function CobroPage() {
               </div>
 
               <div className="flex flex-col gap-3.5">
-                <Input
-                  label="¿Quién paga? (opcional)"
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                  placeholder="Juan, Pedro, Mónica…"
-                />
+                <div className="flex flex-wrap gap-3.5">
+                  <Input
+                    type="date"
+                    label="Fecha de la venta"
+                    value={fechaVenta}
+                    onChange={(e) => setFechaVenta(e.target.value)}
+                    max={todayStr()}
+                    wrapperClassName="w-[170px]"
+                  />
+                  <Input
+                    label="¿Quién paga? (opcional)"
+                    value={nota}
+                    onChange={(e) => setNota(e.target.value)}
+                    placeholder="Juan, Pedro, Mónica…"
+                    wrapperClassName="min-w-[180px] flex-1"
+                  />
+                </div>
                 <div>
                   <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Método de pago</div>
                   <div className="flex flex-wrap gap-1.5">

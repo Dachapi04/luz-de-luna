@@ -244,12 +244,16 @@ export async function marcarListo(
   });
 }
 
+const FECHA_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 export interface RegistrarPagoInput {
   monto: number;
   metodoPago: MetodoPago;
   nota?: string;
   /** Solo relevante en Efectivo; si se omite se asume igual al monto (sin vuelto). */
   recibido?: number;
+  /** Día de la venta (YYYY-MM-DD). Si se omite, no se toca la fecha ya guardada del pedido. */
+  fecha?: string;
 }
 
 /**
@@ -298,7 +302,10 @@ export async function registrarPago(cajero: Usuario, mesa: string, input: Regist
     const totalPagado = round3(pagos.reduce((a, p) => a + p.monto, 0));
     const completo = round3(total - totalPagado) <= 0.01;
 
-    const update: { pagos: PagoParcial[]; pagado?: true; cobro?: Pedido['cobro'] } = { pagos };
+    const update: { pagos: PagoParcial[]; pagado?: true; cobro?: Pedido['cobro']; fecha?: string } = { pagos };
+    if (input.fecha && FECHA_PATTERN.test(input.fecha)) {
+      update.fecha = input.fecha;
+    }
     if (completo) {
       const metodosUnicos = Array.from(new Set(pagos.map((p) => p.metodoPago)));
       update.pagado = true;

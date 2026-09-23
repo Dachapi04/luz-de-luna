@@ -9,7 +9,7 @@ import { totalesPeriodo, desglosePorProducto, montoPorMetodo } from '@/domain/pe
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { Chip } from '@/components/ui/Chip';
-import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PeriodCard } from '@/components/resumen/PeriodCard';
 import { DesgloseBars } from '@/components/resumen/DesgloseBars';
@@ -46,8 +46,6 @@ export default function ResumenPage() {
 
   const rangoActivo = RANGOS.find((r) => r.key === range)!;
   const desglose = desglosePorProducto(pedidos, rangoActivo.desde);
-
-  const fechas = Array.from(new Set([todayStr(), ...pedidos.map((p) => p.fecha)])).sort().reverse();
 
   const cobrosDia = pedidosCierreDia.filter((p) => p.pagado && p.cobro);
   const porMetodo = (m: MetodoPago) => cobrosDia.reduce((a, p) => a + montoPorMetodo(p, m), 0);
@@ -105,12 +103,13 @@ export default function ResumenPage() {
 
         <section className="rounded-lg border border-border bg-surface p-[17px]">
           <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Cierre de caja</div>
-          <Select
+          <Input
+            type="date"
             label="Fecha"
             wrapperClassName="mb-3.5"
             value={cierreFecha}
             onChange={(e) => setCierreFecha(e.target.value)}
-            options={fechas.map((f) => ({ value: f, label: f === todayStr() ? `${f} (hoy)` : f }))}
+            max={todayStr()}
           />
           <div className="flex flex-col gap-2 font-mono text-[13px]">
             <Row label="Total vendido" value={formatMoney(vendidoDia)} />

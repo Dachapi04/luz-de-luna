@@ -15,6 +15,8 @@ export interface RegistrarPagoInput {
   metodoPago: MetodoPago;
   nota?: string;
   recibido?: number;
+  /** Día de la venta (YYYY-MM-DD); si se omite, no se toca la fecha ya guardada del pedido. */
+  fecha?: string;
 }
 
 export const pedidosService = {
