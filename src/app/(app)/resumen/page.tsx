@@ -46,6 +46,7 @@ export default function ResumenPage() {
   const semana = totalesPeriodo(pedidos, compras, daysAgoStr(6));
   const mes = totalesPeriodo(pedidos, compras, firstOfMonthStr());
 
+  const rangoTotales = totalesPeriodo(pedidos, compras, rangoDesde, rangoHasta);
   const desglose = desglosePorProducto(pedidos, rangoDesde, rangoHasta);
 
   function elegirRango(desde: string) {
@@ -123,6 +124,15 @@ export default function ResumenPage() {
               min={rangoDesde}
               max={todayStr()}
               onChange={(e) => setRangoHasta(e.target.value)}
+            />
+          </div>
+          <div className="mb-3.5 flex flex-col gap-1.5 rounded-md border border-border bg-surface-sunken p-3 font-mono text-[13px]">
+            <Row label="Total vendido" value={formatMoney(rangoTotales.ventas)} />
+            <Row label="Total comprado" value={formatMoney(rangoTotales.compras)} />
+            <Row
+              label="Ganancia"
+              value={formatMoney(rangoTotales.ganancia)}
+              tone={rangoTotales.ganancia >= 0 ? 'ok' : 'bad'}
             />
           </div>
           <DesgloseBars rows={desglose} />

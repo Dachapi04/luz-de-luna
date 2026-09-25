@@ -27,11 +27,18 @@ export function estacionPendiente(pedido: Pick<Pedido, 'items'>, estacion: Desti
   return itemsDeEstacion(pedido, estacion).some((i) => !i.listo);
 }
 
-export function totalesPeriodo(pedidos: Pedido[], compras: { fecha: string; total: number }[], desde: string) {
+export function totalesPeriodo(
+  pedidos: Pedido[],
+  compras: { fecha: string; total: number }[],
+  desde: string,
+  hasta?: string
+) {
   const ventas = pedidos
-    .filter((p) => p.pagado && p.fecha >= desde && p.cobro)
+    .filter((p) => p.pagado && p.fecha >= desde && (!hasta || p.fecha <= hasta) && p.cobro)
     .reduce((acc, p) => acc + (p.cobro?.total ?? 0), 0);
-  const comprasTotal = compras.filter((c) => c.fecha >= desde).reduce((acc, c) => acc + c.total, 0);
+  const comprasTotal = compras
+    .filter((c) => c.fecha >= desde && (!hasta || c.fecha <= hasta))
+    .reduce((acc, c) => acc + c.total, 0);
   return { ventas, compras: comprasTotal, ganancia: ventas - comprasTotal };
 }
 
