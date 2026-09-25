@@ -45,6 +45,10 @@ export const pedidosService = {
   eliminar: (pedidoId: string, pin?: string) =>
     apiFetch<void>(`/api/pedidos/${pedidoId}`, { method: 'DELETE', body: JSON.stringify({ pin }) }),
 
+  /** Admin — corrige el día de un pedido ya registrado. */
+  editarFecha: (pedidoId: string, fecha: string) =>
+    apiFetch<void>(`/api/pedidos/${pedidoId}`, { method: 'PATCH', body: JSON.stringify({ fecha }) }),
+
   registrarPago: (mesa: string, input: RegistrarPagoInput) =>
     apiFetch<Pedido>('/api/pedidos/cobrar', { method: 'POST', body: JSON.stringify({ mesa, ...input }) }),
 };

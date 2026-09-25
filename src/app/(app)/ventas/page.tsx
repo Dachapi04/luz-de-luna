@@ -61,6 +61,15 @@ export default function VentasPage() {
     }
   }
 
+  async function editarFecha(id: string, fecha: string) {
+    try {
+      await pedidosService.editarFecha(id, fecha);
+      show('Fecha del pedido actualizada');
+    } catch (err) {
+      show(err instanceof ApiClientError ? err.message : 'No se pudo actualizar la fecha', 'error');
+    }
+  }
+
   return (
     <>
       <PageHeader title={VIEW_META.ventas.label} subtitle={VIEW_META.ventas.subtitle} />
@@ -91,6 +100,7 @@ export default function VentasPage() {
                 quitarItem(p.id, itemId, item.cantidad, item.producto, p.mesa);
               }}
               onEliminar={() => eliminarPedido(p.id, p.mesa, p.fecha, p.pagado)}
+              onEditarFecha={(fecha) => editarFecha(p.id, fecha)}
             />
           ))}
         </div>

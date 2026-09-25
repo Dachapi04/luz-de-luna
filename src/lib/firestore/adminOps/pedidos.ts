@@ -244,7 +244,17 @@ export async function marcarListo(
   });
 }
 
-const FECHA_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export const FECHA_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Corrige la fecha de un pedido ya registrado (admin) — p.ej. una venta cargada bajo el día equivocado. */
+export async function editarFechaPedido(pedidoId: string, fecha: string): Promise<void> {
+  if (!FECHA_PATTERN.test(fecha)) throw new ApiError(400, 'Fecha inválida');
+  const db = getAdminDb();
+  const ref = db.collection('pedidos').doc(pedidoId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new ApiError(404, 'Pedido no encontrado');
+  await ref.update({ fecha });
+}
 
 export interface RegistrarPagoInput {
   monto: number;
