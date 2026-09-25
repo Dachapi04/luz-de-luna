@@ -89,10 +89,10 @@ export function flattenPagos(pedidos: Pedido[]): PagoConMesa[] {
     .flatMap((p) => pagosDe(p).map((pg) => ({ ...pg, pedidoId: p.id, mesa: p.mesa, fecha: p.fecha })));
 }
 
-export function desglosePorProducto(pedidos: Pedido[], desde: string) {
+export function desglosePorProducto(pedidos: Pedido[], desde: string, hasta?: string) {
   const acc = new Map<string, { qty: number; monto: number }>();
   for (const p of pedidos) {
-    if (!p.pagado || p.fecha < desde) continue;
+    if (!p.pagado || p.fecha < desde || (hasta && p.fecha > hasta)) continue;
     for (const i of p.items) {
       const cur = acc.get(i.producto) ?? { qty: 0, monto: 0 };
       cur.qty += i.cantidad;

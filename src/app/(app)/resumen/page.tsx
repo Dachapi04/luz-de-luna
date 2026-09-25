@@ -30,12 +30,14 @@ const RANGOS = [
 export default function ResumenPage() {
   useViewGuard('resumen');
   const { show } = useToast();
-  const [range, setRange] = useState<(typeof RANGOS)[number]['key']>('7');
+  const [rangoDesde, setRangoDesde] = useState(daysAgoStr(6));
+  const [rangoHasta, setRangoHasta] = useState(todayStr());
   const [cierreFecha, setCierreFecha] = useState(todayStr());
   const [guardando, setGuardando] = useState(false);
 
-  // 31 days covers "hoy/7/30" + "este mes" in the same subscription.
-  const { data: pedidos } = usePedidosDesde(daysAgoStr(31));
+  // La consulta baja hasta lo que cubra "este mes" o el rango elegido, lo que sea más lejano.
+  const fetchDesde = rangoDesde < daysAgoStr(31) ? rangoDesde : daysAgoStr(31);
+  const { data: pedidos } = usePedidosDesde(fetchDesde);
   const { data: compras } = useCompras();
   const { data: pedidosCierreDia } = usePedidosDelDia(cierreFecha);
   const cierreGuardado = useCierre(cierreFecha);
@@ -44,8 +46,12 @@ export default function ResumenPage() {
   const semana = totalesPeriodo(pedidos, compras, daysAgoStr(6));
   const mes = totalesPeriodo(pedidos, compras, firstOfMonthStr());
 
-  const rangoActivo = RANGOS.find((r) => r.key === range)!;
-  const desglose = desglosePorProducto(pedidos, rangoActivo.desde);
+  const desglose = desglosePorProducto(pedidos, rangoDesde, rangoHasta);
+
+  function elegirRango(desde: string) {
+    setRangoDesde(desde);
+    setRangoHasta(todayStr());
+  }
 
   const cobrosDia = pedidosCierreDia.filter((p) => p.pagado && p.cobro);
   const porMetodo = (m: MetodoPago) => cobrosDia.reduce((a, p) => a + montoPorMetodo(p, m), 0);
@@ -92,11 +98,32 @@ export default function ResumenPage() {
             </div>
             <div className="flex gap-1.5">
               {RANGOS.map((r) => (
-                <Chip key={r.key} active={range === r.key} onClick={() => setRange(r.key)}>
+                <Chip
+                  key={r.key}
+                  active={rangoDesde === r.desde && rangoHasta === todayStr()}
+                  onClick={() => elegirRango(r.desde)}
+                >
                   {r.label}
                 </Chip>
               ))}
             </div>
+          </div>
+          <div className="mb-3.5 grid grid-cols-2 gap-2.5">
+            <Input
+              type="date"
+              label="Desde"
+              value={rangoDesde}
+              max={rangoHasta}
+              onChange={(e) => setRangoDesde(e.target.value)}
+            />
+            <Input
+              type="date"
+              label="Hasta"
+              value={rangoHasta}
+              min={rangoDesde}
+              max={todayStr()}
+              onChange={(e) => setRangoHasta(e.target.value)}
+            />
           </div>
           <DesgloseBars rows={desglose} />
         </section>
