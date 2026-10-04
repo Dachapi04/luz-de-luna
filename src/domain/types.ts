@@ -16,7 +16,7 @@ export type MetodoPago = (typeof METODOS_PAGO)[number];
 export const DESTINOS = ['cocina', 'bartender'] as const;
 export type Destino = (typeof DESTINOS)[number];
 
-export const MESAS_BARRA = ['Barra Izquierda', 'Barra Medio', 'Barra Centro'] as const;
+export const MESAS_BARRA = ['Barra Izquierda', 'Barra Centro', 'Barra Derecha'] as const;
 export const MESAS_SALON = [
   'Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5',
   'Mesa 6', 'Mesa 7', 'Mesa 8', 'Mesa 9', 'Mesa 10',
