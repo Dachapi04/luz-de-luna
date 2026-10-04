@@ -52,3 +52,14 @@ export function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/** HH:mm de un timestamp ISO, en la zona del negocio. */
+export function horaDe(iso: string): string {
+  return timeFmt.format(new Date(iso));
+}
+
+/** YYYY-MM-DD → DD/MM/YYYY */
+export function formatDateCorta(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}

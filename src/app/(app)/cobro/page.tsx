@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { useViewGuard } from '@/hooks/useViewGuard';
-import { usePedidosAbiertos } from '@/hooks/usePedidos';
-import { pedidoAbierto, saldoPendiente, totalPagado, totalPedido } from '@/domain/pedidos';
+import { usePedidosAbiertos, usePedidosDelDia } from '@/hooks/usePedidos';
+import { pagosDe, pedidoAbierto, saldoPendiente, totalPagado, totalPedido } from '@/domain/pedidos';
 import { METODOS_PAGO, type MetodoPago, type Pedido } from '@/domain/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
@@ -14,10 +14,11 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { SkeletonRows } from '@/components/ui/Spinner';
 import { formatMoney, parseNumeric } from '@/lib/utils/money';
-import { todayStr } from '@/lib/utils/date';
+import { horaDe, todayStr } from '@/lib/utils/date';
 import { useToast } from '@/components/ui/ToastProvider';
 import { pedidosService } from '@/services/pedidosService';
 import { ApiClientError } from '@/lib/api/client';
+import { BotonComprobante } from '@/components/comprobante/BotonComprobante';
 
 export default function CobroPage() {
   useViewGuard('cobro');
@@ -30,6 +31,12 @@ export default function CobroPage() {
   const [nota, setNota] = useState('');
   const [fechaVenta, setFechaVenta] = useState(todayStr());
   const [cobrando, setCobrando] = useState(false);
+  /** Último pedido cobrado por completo en esta pantalla — muestra el botón de comprobante. */
+  const [cobrado, setCobrado] = useState<Pedido | null>(null);
+  const hoy = usePedidosDelDia(todayStr());
+  const cobradasHoy = hoy.data
+    .filter((p) => p.pagado)
+    .sort((a, b) => ((a.cobro?.fechaHora ?? '') < (b.cobro?.fechaHora ?? '') ? 1 : -1));
 
   const pedido = selMesa ? pedidoAbierto(abiertos, selMesa) : undefined;
   const total = pedido ? totalPedido(pedido) : 0;
@@ -43,6 +50,7 @@ export default function CobroPage() {
   const excedeSaldo = monto - falta > 0.01;
 
   function seleccionar(p: Pedido) {
+    setCobrado(null);
     setSelMesa(p.mesa);
     setMetodo('Efectivo');
     setMontoStr(String(saldoPendiente(p)));
@@ -64,6 +72,7 @@ export default function CobroPage() {
       });
       if (resultado.pagado) {
         show(`${selMesa} cobrada por completo · ${formatMoney(total)}`);
+        setCobrado(resultado);
         setSelMesa(null);
       } else {
         const nuevaFalta = saldoPendiente(resultado);
@@ -119,10 +128,53 @@ export default function CobroPage() {
               })}
             </div>
           )}
+
+          {cobradasHoy.length > 0 && (
+            <>
+              <div className="mb-2.5 mt-6 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
+                Cobradas hoy · reimprimir comprobante
+              </div>
+              <div className="flex flex-col gap-2">
+                {cobradasHoy.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-2.5 rounded-lg border border-border bg-surface-sunken px-3.5 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-serif text-base font-semibold">{p.mesa}</span>
+                      <span className="block font-mono text-[11px] text-muted-2">
+                        {p.cobro?.fechaHora ? horaDe(p.cobro.fechaHora) : p.horaCreacion} · {formatMoney(totalPedido(p))}
+                      </span>
+                    </span>
+                    <BotonComprobante pedido={p} size="sm">
+                      🧾 Imprimir
+                    </BotonComprobante>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="rounded-lg border border-border bg-surface p-[17px]">
-          {!pedido && <div className="px-2 py-9 text-center text-[13px] text-muted">Selecciona una mesa para cobrar.</div>}
+          {!pedido && cobrado && (
+            <div className="flex flex-col items-center gap-3 px-2 py-7 text-center">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ok-fg">✅ Cuenta pagada</div>
+              <div className="font-serif text-[22px] font-semibold">{cobrado.mesa}</div>
+              <div className="font-mono text-2xl text-gold">{formatMoney(totalPedido(cobrado))}</div>
+              {(() => {
+                const vuelto = pagosDe(cobrado).at(-1)?.vuelto ?? 0;
+                return vuelto > 0 ? <div className="font-mono text-sm text-text-soft">Vuelto {formatMoney(vuelto)}</div> : null;
+              })()}
+              <BotonComprobante pedido={cobrado} variant="primary" fullWidth className="mt-2 py-3.5 text-[15px]" />
+              <Button variant="ghost" onClick={() => setCobrado(null)}>
+                Listo
+              </Button>
+            </div>
+          )}
+          {!pedido && !cobrado && (
+            <div className="px-2 py-9 text-center text-[13px] text-muted">Selecciona una mesa para cobrar.</div>
+          )}
           {pedido && (
             <>
               <div className="flex items-baseline justify-between gap-2.5 border-b border-border pb-[11px]">

@@ -7,6 +7,7 @@ import { pagosDe, totalPedido } from '@/domain/pedidos';
 import { Badge } from '@/components/ui/Badge';
 import { formatMoney } from '@/lib/utils/money';
 import { todayStr } from '@/lib/utils/date';
+import { BotonComprobante } from '@/components/comprobante/BotonComprobante';
 
 export function VentaCard({
   pedido,
@@ -88,6 +89,11 @@ export function VentaCard({
         </span>
         <Badge tone={pedido.pagado ? 'ok' : 'warn'}>{pedido.pagado ? 'Cobrado' : 'Abierto'}</Badge>
         <span className="min-w-[92px] text-right font-mono text-sm">{formatMoney(totalPedido(pedido))}</span>
+        {pedido.pagado && (
+          <BotonComprobante pedido={pedido} size="sm" className="rounded-[7px] px-2.5 py-[7px] text-text-soft">
+            🧾 Comprobante
+          </BotonComprobante>
+        )}
         <button
           onClick={() => setOpen(!open)}
           className="cursor-pointer rounded-[7px] border border-border-strong bg-transparent px-2.5 py-[7px] text-xs text-text-soft"
