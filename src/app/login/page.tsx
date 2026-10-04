@@ -80,11 +80,6 @@ export default function LoginPage() {
             {loading ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
-
-        <div className="mt-[18px] text-xs leading-relaxed text-muted">
-          Primer acceso: usuario <span className="font-mono text-gold">admin</span>, contraseña{' '}
-          <span className="font-mono text-gold">admin123</span>. Cámbiala desde Usuarios.
-        </div>
       </div>
     </div>
   );
