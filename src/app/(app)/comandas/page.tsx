@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useViewGuard } from '@/hooks/useViewGuard';
-import { usePedidosDelDia } from '@/hooks/usePedidos';
-import { estacionPendiente } from '@/domain/pedidos';
+import { usePedidosAbiertos, usePedidosDelDia } from '@/hooks/usePedidos';
+import { comandasDeEstacion } from '@/domain/pedidos';
 import { ESTACION_BY_ROLE } from '@/domain/permissions';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
@@ -21,18 +21,15 @@ type Tab = 'activas' | 'historial';
 export default function ComandasPage() {
   const user = useViewGuard('comandas');
   const { show } = useToast();
-  const { data: pedidos, loading } = usePedidosDelDia(todayStr());
+  const abiertos = usePedidosAbiertos();
+  const hoy = usePedidosDelDia(todayStr());
+  const loading = abiertos.loading || hoy.loading;
   const [tab, setTab] = useState<Tab>('activas');
 
   const estacion = user ? ESTACION_BY_ROLE[user.rol] ?? 'cocina' : 'cocina';
 
-  const list = pedidos
-    .filter((p) => p.items.some((i) => i.destino === estacion))
-    .filter((p) => {
-      const pendiente = estacionPendiente(p, estacion);
-      return tab === 'activas' ? pendiente && !p.pagado : !pendiente;
-    })
-    .sort((a, b) => (a.horaCreacion < b.horaCreacion ? -1 : 1));
+  const { activas, historial } = comandasDeEstacion(abiertos.data, hoy.data, estacion);
+  const list = tab === 'activas' ? activas : historial;
 
   async function toggle(pedidoId: string, itemId: string, listo: boolean) {
     try {

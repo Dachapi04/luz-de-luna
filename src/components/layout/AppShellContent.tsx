@@ -7,7 +7,7 @@ import { usePedidosAbiertos, usePedidosDelDia } from '@/hooks/usePedidos';
 import { useProductos } from '@/hooks/useProductos';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { insumosBajoStock } from '@/domain/inventory';
-import { estacionPendiente } from '@/domain/pedidos';
+import { comandasDeEstacion } from '@/domain/pedidos';
 import { ESTACION_BY_ROLE, type ViewKey } from '@/domain/permissions';
 import { todayStr } from '@/lib/utils/date';
 import type { Usuario } from '@/domain/types';
@@ -22,9 +22,7 @@ export function AppShellContent({ user, children }: { user: Usuario; children: R
   const usuarios = useUsuarios();
 
   const estacion = ESTACION_BY_ROLE[user.rol];
-  const pendientesEstacion = estacion
-    ? hoy.data.filter((p) => !p.pagado && estacionPendiente(p, estacion)).length
-    : 0;
+  const pendientesEstacion = estacion ? comandasDeEstacion(abiertos.data, hoy.data, estacion).activas.length : 0;
 
   const badges: Partial<Record<ViewKey, string>> = {
     mesas: String(abiertos.data.length),

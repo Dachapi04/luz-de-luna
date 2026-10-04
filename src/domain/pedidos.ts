@@ -27,6 +27,29 @@ export function estacionPendiente(pedido: Pick<Pedido, 'items'>, estacion: Desti
   return itemsDeEstacion(pedido, estacion).some((i) => !i.listo);
 }
 
+/**
+ * Reparte las comandas de una estación en activas e historial.
+ *
+ * - Activas: cualquier pedido con líneas suyas sin preparar, venga de la
+ *   lista de mesas abiertas (sin importar su fecha: una mesa abierta antes
+ *   de medianoche sigue recibiendo líneas) o de los pedidos de hoy — aunque
+ *   ya esté cobrado, porque el cajero cobra al instante las ventas de
+ *   mostrador y la cocina/bar igual tiene que prepararlas.
+ * - Historial: pedidos de hoy cuyas líneas de la estación ya están todas listas.
+ */
+export function comandasDeEstacion(abiertos: Pedido[], deHoy: Pedido[], estacion: Destino) {
+  const porId = new Map<string, Pedido>();
+  for (const p of [...abiertos, ...deHoy]) porId.set(p.id, p);
+  const conLineas = Array.from(porId.values())
+    .filter((p) => itemsDeEstacion(p, estacion).length > 0)
+    .sort((a, b) => (a.fecha + a.horaCreacion < b.fecha + b.horaCreacion ? -1 : 1));
+  const deHoyIds = new Set(deHoy.map((p) => p.id));
+  return {
+    activas: conLineas.filter((p) => estacionPendiente(p, estacion)),
+    historial: conLineas.filter((p) => deHoyIds.has(p.id) && !estacionPendiente(p, estacion)),
+  };
+}
+
 export function totalesPeriodo(
   pedidos: Pedido[],
   compras: { fecha: string; total: number }[],

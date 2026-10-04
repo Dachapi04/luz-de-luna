@@ -1,29 +1,51 @@
-/** YYYY-MM-DD for "today" in the local timezone (not UTC, unlike toISOString). */
+/**
+ * Zona horaria del negocio. Todas las fechas/horas se calculan aquí y no en
+ * la del proceso: en Vercel el servidor corre en UTC, así que a partir de
+ * las 18:00 en Costa Rica `new Date()` "local" ya es el día siguiente y los
+ * pedidos quedaban guardados con la fecha de mañana (y no aparecían en las
+ * comandas de hoy).
+ */
+export const BUSINESS_TZ = 'America/Costa_Rica';
+
+const dateFmt = new Intl.DateTimeFormat('en-CA', {
+  timeZone: BUSINESS_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const timeFmt = new Intl.DateTimeFormat('en-GB', {
+  timeZone: BUSINESS_TZ,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** YYYY-MM-DD de "hoy" en la zona del negocio, sin importar dónde corra el código. */
 export function todayStr(): string {
   return toDateStr(new Date());
 }
 
+/** YYYY-MM-DD del instante `d` en la zona del negocio. */
 export function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return dateFmt.format(d);
 }
 
+/** HH:mm actual en la zona del negocio. */
 export function nowHHmm(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return timeFmt.format(new Date());
 }
 
 export function daysAgoStr(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return toDateStr(d);
+  // Aritmética sobre la fecha de calendario (en UTC para no tropezar con
+  // cambios de hora), partiendo del "hoy" del negocio.
+  const d = new Date(todayStr() + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
 export function firstOfMonthStr(): string {
-  const d = new Date();
-  return toDateStr(new Date(d.getFullYear(), d.getMonth(), 1));
+  return todayStr().slice(0, 8) + '01';
 }
 
 export function formatDateLong(dateStr: string): string {
