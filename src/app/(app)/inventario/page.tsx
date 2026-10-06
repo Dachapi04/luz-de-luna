@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonRows } from '@/components/ui/Spinner';
 import { ProductoCard } from '@/components/inventario/ProductoCard';
+import { AjusteStockModal } from '@/components/inventario/AjusteStockModal';
 import { ProductoForm, emptyProductoForm, type ProductoFormState, type RecetaFormLine } from '@/components/inventario/ProductoForm';
 import { includesNorm } from '@/lib/utils/normalize';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -30,6 +31,7 @@ export default function InventarioPage() {
   const [form, setForm] = useState<ProductoFormState>(emptyProductoForm);
   const [receta, setReceta] = useState<RecetaFormLine[]>([]);
   const [saving, setSaving] = useState(false);
+  const [ajuste, setAjuste] = useState<{ producto: Producto; signo: 1 | -1 } | null>(null);
 
   const bajos = insumosBajoStock(productos);
   const filtrados = productos.filter(
@@ -101,8 +103,10 @@ export default function InventarioPage() {
   }
 
   async function ajustar(p: Producto, delta: number) {
+    setAjuste(null);
     try {
       await productosService.ajustarStock(p.id, delta);
+      show(`${p.nombre}: ${delta > 0 ? '+' : ''}${delta} ${p.unidad}`);
     } catch (err) {
       show(err instanceof ApiClientError ? err.message : 'No se pudo ajustar el stock', 'error');
     }
@@ -147,7 +151,7 @@ export default function InventarioPage() {
                   key={p.id}
                   producto={p}
                   productos={productos}
-                  onAjustar={(d) => ajustar(p, d)}
+                  onAjustar={(signo) => setAjuste({ producto: p, signo })}
                   onEdit={() => editar(p)}
                   onDelete={() => eliminar(p)}
                 />
@@ -167,6 +171,15 @@ export default function InventarioPage() {
           onCancel={cancelar}
         />
       </div>
+
+      {ajuste && (
+        <AjusteStockModal
+          producto={ajuste.producto}
+          signo={ajuste.signo}
+          onConfirm={(delta) => ajustar(ajuste.producto, delta)}
+          onClose={() => setAjuste(null)}
+        />
+      )}
     </>
   );
 }

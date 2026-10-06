@@ -15,7 +15,7 @@ export function ProductoCard({
 }: {
   producto: Producto;
   productos: Producto[];
-  onAjustar: (delta: number) => void;
+  onAjustar: (signo: 1 | -1) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
