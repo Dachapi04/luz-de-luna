@@ -5,7 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getFirebaseAuth, getFirebaseDb } from '@/config/firebase.client';
 import { usernameToAuthEmail } from '@/config/env';
-import type { Usuario } from '@/domain/types';
+import { esUsuarioActivo, type Usuario } from '@/domain/types';
 import { usuarioConverter } from '@/lib/firestore/converters';
 
 interface AuthContextValue {
@@ -38,7 +38,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const ref = doc(getFirebaseDb(), 'usuarios', firebaseUser.uid).withConverter(usuarioConverter);
     const unsub = onSnapshot(
       ref,
-      (snap) => setProfile(snap.exists() ? snap.data() : null),
+      (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        // Cuenta desactivada desde Usuarios: cerrar la sesión abierta al instante.
+        if (data && !esUsuarioActivo(data)) {
+          setProfile(null);
+          void signOut(getFirebaseAuth());
+          return;
+        }
+        setProfile(data);
+      },
       () => setProfile(null)
     );
     return unsub;

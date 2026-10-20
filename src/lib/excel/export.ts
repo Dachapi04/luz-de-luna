@@ -85,7 +85,7 @@ export async function buildBackupWorkbook(): Promise<Buffer> {
 
   const usuariosRows = usuarios.docs.map((d) => {
     const u = { id: d.id, ...(d.data() as Omit<Usuario, 'id'>) };
-    return { id: u.id, nombre: u.nombre, usuario: u.usuario, rol: u.rol };
+    return { id: u.id, nombre: u.nombre, usuario: u.usuario, rol: u.rol, activo: u.activo !== false ? 'Sí' : 'No' };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usuariosRows), 'Usuarios');
 

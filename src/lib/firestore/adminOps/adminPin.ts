@@ -2,7 +2,7 @@ import 'server-only';
 import bcrypt from 'bcryptjs';
 import { getAdminDb } from '@/config/firebase.admin';
 import { ApiError } from '@/lib/api/http';
-import type { Usuario } from '@/domain/types';
+import { esUsuarioActivo, type Usuario } from '@/domain/types';
 
 /**
  * PINs de administrador viven en su propia colección (`adminPins/{uid}`),
@@ -44,6 +44,8 @@ export async function verifyAdminPin(pin: string): Promise<Usuario> {
   const adminsSnap = await db.collection('usuarios').where('rol', '==', 'admin').get();
 
   for (const doc of adminsSnap.docs) {
+    // el PIN de un admin desactivado ya no autoriza nada
+    if (!esUsuarioActivo(doc.data() as Usuario)) continue;
     const pinDoc = await db.collection('adminPins').doc(doc.id).get();
     const pinHash = pinDoc.exists ? (pinDoc.data() as { pinHash?: string }).pinHash : undefined;
     if (pinHash && (await bcrypt.compare(pin, pinHash))) {

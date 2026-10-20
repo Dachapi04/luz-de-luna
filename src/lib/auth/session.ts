@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextRequest } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/config/firebase.admin';
-import type { Rol, Usuario } from '@/domain/types';
+import { esUsuarioActivo, type Rol, type Usuario } from '@/domain/types';
 
 export class AuthError extends Error {
   constructor(public status: 401 | 403, message: string) {
@@ -30,7 +30,11 @@ export async function requireUser(req: NextRequest): Promise<Usuario> {
 
   const snap = await getAdminDb().collection('usuarios').doc(uid).get();
   if (!snap.exists) throw new AuthError(403, 'No existe un perfil de usuario para esta cuenta');
-  return { id: snap.id, ...(snap.data() as Omit<Usuario, 'id'>) };
+  const user = { id: snap.id, ...(snap.data() as Omit<Usuario, 'id'>) };
+  // Un ID token sigue siendo válido hasta 1 h después de desactivar la cuenta;
+  // este chequeo corta el acceso a la API de inmediato.
+  if (!esUsuarioActivo(user)) throw new AuthError(403, 'Esta cuenta está desactivada');
+  return user;
 }
 
 export async function requireRole(req: NextRequest, allowed: Rol[]): Promise<Usuario> {

@@ -19,5 +19,8 @@ export const usuariosService = {
   editar: (id: string, input: UsuarioInput) =>
     apiFetch<Usuario>(`/api/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
+  setActivo: (id: string, activo: boolean) =>
+    apiFetch<void>(`/api/usuarios/${id}/activo`, { method: 'POST', body: JSON.stringify({ activo }) }),
+
   eliminar: (id: string) => apiFetch<void>(`/api/usuarios/${id}`, { method: 'DELETE' }),
 };

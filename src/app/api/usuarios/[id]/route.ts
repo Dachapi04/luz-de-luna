@@ -4,14 +4,14 @@ import { withApiErrors } from '@/lib/api/http';
 import { editarUsuario, eliminarUsuario, type UsuarioInput } from '@/lib/firestore/adminOps/usuarios';
 
 export const PATCH = withApiErrors(async (req: NextRequest, { params }: { params: { id: string } }) => {
-  await requireRole(req, ['admin']);
+  const actor = await requireRole(req, ['admin']);
   const body = (await req.json()) as UsuarioInput;
-  const usuario = await editarUsuario(params.id, body);
+  const usuario = await editarUsuario(params.id, body, actor.id);
   return NextResponse.json(usuario);
 });
 
 export const DELETE = withApiErrors(async (req: NextRequest, { params }: { params: { id: string } }) => {
-  await requireRole(req, ['admin']);
-  await eliminarUsuario(params.id);
+  const actor = await requireRole(req, ['admin']);
+  await eliminarUsuario(params.id, actor.id);
   return new NextResponse(null, { status: 204 });
 });

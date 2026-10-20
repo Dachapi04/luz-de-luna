@@ -28,6 +28,12 @@ export interface Usuario {
   nombre: string;
   usuario: string;
   rol: Rol;
+  /** false = cuenta desactivada (no puede entrar ni operar). Ausente = activa, para docs anteriores. */
+  activo?: boolean;
+}
+
+export function esUsuarioActivo(u: Pick<Usuario, 'activo'>): boolean {
+  return u.activo !== false;
 }
 
 export interface RecetaLinea {

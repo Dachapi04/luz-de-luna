@@ -30,8 +30,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(usuario.trim(), clave);
-    } catch {
-      setError('Usuario o contraseña incorrectos');
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      setError(code === 'auth/user-disabled' ? 'Esta cuenta está desactivada. Habla con un administrador.' : 'Usuario o contraseña incorrectos');
     } finally {
       setLoading(false);
     }
