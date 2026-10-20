@@ -101,6 +101,8 @@ export interface PagoParcial {
   metodoPago: MetodoPago;
   recibido: number; // lo entregado; > monto en efectivo produce vuelto
   vuelto: number;
+  /** Propina que dejó el cliente con este abono, en el mismo método. Suma a las ventas. Ausente = 0. */
+  propina?: number;
   nota: string; // quién pagó esa parte, texto libre, opcional ("Juan")
   cajeroId: string;
   cajeroNombre: string;
@@ -109,7 +111,9 @@ export interface PagoParcial {
 
 /** Resumen final una vez el pedido queda completamente pagado (posible mezcla de métodos/pagadores). */
 export interface Cobro {
-  total: number;
+  total: number; // total de la cuenta, sin propina
+  /** Suma de las propinas de todos los abonos. Ausente = 0. */
+  propina?: number;
   metodoPago: MetodoPago | 'Mixto';
   recibido: number;
   vuelto: number;
@@ -136,7 +140,8 @@ export interface Pedido {
 /** cierresCaja/{fecha} — doc id is the YYYY-MM-DD date */
 export interface CierreCaja {
   fecha: string;
-  totalVendido: number;
+  totalVendido: number; // incluye propinas
+  propinas?: number;
   totalComprado: number;
   ganancia: number;
   efectivo: number;

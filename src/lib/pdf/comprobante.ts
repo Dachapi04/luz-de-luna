@@ -2,7 +2,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { Pedido } from '@/domain/types';
-import { pagosDe, totalPedido } from '@/domain/pedidos';
+import { pagosDe, propinaPedido, totalPedido } from '@/domain/pedidos';
 import { formatMoney } from '@/lib/utils/money';
 import { formatDateCorta, horaDe } from '@/lib/utils/date';
 
@@ -99,14 +99,20 @@ function dibujar(doc: jsPDF, pedido: Pedido): number {
   separador();
 
   y += 1;
-  fila('TOTAL', dinero(totalPedido(pedido)), { size: 12, bold: true });
+  const propina = propinaPedido(pedido);
+  if (propina > 0) {
+    fila('Subtotal', dinero(totalPedido(pedido)));
+    fila('Propina', dinero(propina));
+    y += 1;
+  }
+  fila('TOTAL', dinero(totalPedido(pedido) + propina), { size: 12, bold: true });
   y += 1;
 
   const pagos = pagosDe(pedido);
   if (pagos.length) {
     separador();
     for (const pg of pagos) {
-      fila(pg.nota ? `${pg.metodoPago} (${pg.nota})` : pg.metodoPago, dinero(pg.monto), { size: 8 });
+      fila(pg.nota ? `${pg.metodoPago} (${pg.nota})` : pg.metodoPago, dinero(pg.monto + (pg.propina ?? 0)), { size: 8 });
       if (pg.metodoPago === 'Efectivo' && pg.vuelto > 0) {
         fila('Recibido', dinero(pg.recibido), { size: 7, sangria: 3 });
         fila('Vuelto', dinero(pg.vuelto), { size: 7, sangria: 3 });

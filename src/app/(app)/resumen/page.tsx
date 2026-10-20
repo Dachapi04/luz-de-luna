@@ -5,7 +5,7 @@ import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosDesde, usePedidosDelDia } from '@/hooks/usePedidos';
 import { useCompras } from '@/hooks/useCompras';
 import { useCierre } from '@/hooks/useCierre';
-import { totalesPeriodo, desglosePorProducto, montoPorMetodo } from '@/domain/pedidos';
+import { totalesPeriodo, desglosePorProducto, montoPorMetodo, propinaPedido, ventaCobrada } from '@/domain/pedidos';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { Chip } from '@/components/ui/Chip';
@@ -56,7 +56,8 @@ export default function ResumenPage() {
 
   const cobrosDia = pedidosCierreDia.filter((p) => p.pagado && p.cobro);
   const porMetodo = (m: MetodoPago) => cobrosDia.reduce((a, p) => a + montoPorMetodo(p, m), 0);
-  const vendidoDia = cobrosDia.reduce((a, p) => a + (p.cobro?.total ?? 0), 0);
+  const vendidoDia = cobrosDia.reduce((a, p) => a + ventaCobrada(p), 0);
+  const propinasDia = cobrosDia.reduce((a, p) => a + propinaPedido(p), 0);
   const compradoDia = compras.filter((c) => c.fecha === cierreFecha).reduce((a, c) => a + c.total, 0);
   const gananciaDia = vendidoDia - compradoDia;
 
@@ -150,6 +151,7 @@ export default function ResumenPage() {
           />
           <div className="flex flex-col gap-2 font-mono text-[13px]">
             <Row label="Total vendido" value={formatMoney(vendidoDia)} />
+            {propinasDia > 0 && <Row label="· incluye propinas" value={formatMoney(propinasDia)} muted />}
             <Row label="Total comprado" value={formatMoney(compradoDia)} />
             <Row label="Ganancia" value={formatMoney(gananciaDia)} tone={gananciaDia >= 0 ? 'ok' : 'bad'} />
             <Row label="Efectivo" value={formatMoney(porMetodo('Efectivo'))} muted />

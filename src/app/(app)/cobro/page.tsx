@@ -4,7 +4,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosAbiertos, usePedidosDelDia } from '@/hooks/usePedidos';
-import { pagosDe, pedidoAbierto, saldoPendiente, totalPagado, totalPedido } from '@/domain/pedidos';
+import { pagosDe, pedidoAbierto, propinaPedido, saldoPendiente, totalPagado, totalPedido } from '@/domain/pedidos';
 import { METODOS_PAGO, type MetodoPago, type Pedido } from '@/domain/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
@@ -28,6 +28,7 @@ export default function CobroPage() {
   const [metodo, setMetodo] = useState<MetodoPago>('Efectivo');
   const [montoStr, setMontoStr] = useState('');
   const [recibidoStr, setRecibidoStr] = useState('');
+  const [propinaStr, setPropinaStr] = useState('');
   const [nota, setNota] = useState('');
   const [fechaVenta, setFechaVenta] = useState(todayStr());
   const [cobrando, setCobrando] = useState(false);
@@ -45,8 +46,10 @@ export default function CobroPage() {
   const pagosPrevios = pedido?.pagos ?? [];
 
   const monto = parseNumeric(montoStr);
-  const recibido = metodo === 'Efectivo' ? parseNumeric(recibidoStr) : monto;
-  const vuelto = Math.max(recibido - monto, 0);
+  const propina = Math.max(parseNumeric(propinaStr), 0);
+  const aCubrir = monto + propina;
+  const recibido = metodo === 'Efectivo' ? parseNumeric(recibidoStr) : aCubrir;
+  const vuelto = Math.max(recibido - aCubrir, 0);
   const excedeSaldo = monto - falta > 0.01;
 
   function seleccionar(p: Pedido) {
@@ -55,6 +58,7 @@ export default function CobroPage() {
     setMetodo('Efectivo');
     setMontoStr(String(saldoPendiente(p)));
     setRecibidoStr('');
+    setPropinaStr('');
     setNota('');
     setFechaVenta(todayStr());
   }
@@ -68,18 +72,20 @@ export default function CobroPage() {
         metodoPago: metodo,
         nota: nota.trim() || undefined,
         recibido: metodo === 'Efectivo' ? recibido : undefined,
+        propina: propina > 0 ? propina : undefined,
         fecha: fechaVenta || undefined,
       });
       if (resultado.pagado) {
-        show(`${selMesa} cobrada por completo · ${formatMoney(total)}`);
+        show(`${selMesa} cobrada por completo · ${formatMoney(total)}${propina > 0 ? ` + propina ${formatMoney(propina)}` : ''}`);
         setCobrado(resultado);
         setSelMesa(null);
       } else {
         const nuevaFalta = saldoPendiente(resultado);
-        show(`Abono de ${formatMoney(monto)} registrado · falta ${formatMoney(nuevaFalta)}`);
+        show(`Abono de ${formatMoney(monto)}${propina > 0 ? ` + propina ${formatMoney(propina)}` : ''} registrado · falta ${formatMoney(nuevaFalta)}`);
         setMontoStr(String(nuevaFalta));
       }
       setRecibidoStr('');
+      setPropinaStr('');
       setNota('');
       setMetodo('Efectivo');
     } catch (err) {
@@ -162,6 +168,9 @@ export default function CobroPage() {
               <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ok-fg">✅ Cuenta pagada</div>
               <div className="font-serif text-[22px] font-semibold">{cobrado.mesa}</div>
               <div className="font-mono text-2xl text-gold">{formatMoney(totalPedido(cobrado))}</div>
+              {propinaPedido(cobrado) > 0 && (
+                <div className="font-mono text-sm text-text-soft">Propina {formatMoney(propinaPedido(cobrado))}</div>
+              )}
               {(() => {
                 const vuelto = pagosDe(cobrado).at(-1)?.vuelto ?? 0;
                 return vuelto > 0 ? <div className="font-mono text-sm text-text-soft">Vuelto {formatMoney(vuelto)}</div> : null;
@@ -204,7 +213,10 @@ export default function CobroPage() {
                       <span className="min-w-0 flex-1 text-muted">
                         {pg.nota || 'Pago'} <span className="font-mono text-[11px] text-muted-2">· {pg.metodoPago}</span>
                       </span>
-                      <span className="font-mono text-ok-fg">{formatMoney(pg.monto)}</span>
+                      <span className="font-mono text-ok-fg">
+                        {formatMoney(pg.monto)}
+                        {(pg.propina ?? 0) > 0 && <span className="text-[11px] text-muted-2"> + {formatMoney(pg.propina)} propina</span>}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -264,6 +276,14 @@ export default function CobroPage() {
                     placeholder="0"
                     wrapperClassName="w-[150px]"
                   />
+                  <Input
+                    label="Propina (opcional)"
+                    mono
+                    value={propinaStr}
+                    onChange={(e) => setPropinaStr(e.target.value)}
+                    placeholder="0"
+                    wrapperClassName="w-[150px]"
+                  />
                   {metodo === 'Efectivo' && (
                     <>
                       <Input
@@ -274,7 +294,7 @@ export default function CobroPage() {
                         placeholder="0"
                         wrapperClassName="w-[150px]"
                       />
-                      <div className={clsx('pb-[11px] font-mono text-sm', recibido && recibido < monto ? 'text-bad-fg' : 'text-text')}>
+                      <div className={clsx('pb-[11px] font-mono text-sm', recibido && recibido < aCubrir ? 'text-bad-fg' : 'text-text')}>
                         Vuelto {formatMoney(vuelto)}
                       </div>
                     </>
@@ -284,15 +304,15 @@ export default function CobroPage() {
                   <div className="font-mono text-xs text-bad-fg">El monto no puede superar el saldo pendiente ({formatMoney(falta)}).</div>
                 )}
                 <Button
-                  disabled={cobrando || monto <= 0 || excedeSaldo || (metodo === 'Efectivo' && recibido < monto)}
+                  disabled={cobrando || monto <= 0 || excedeSaldo || (metodo === 'Efectivo' && recibido < aCubrir)}
                   onClick={registrar}
                   className="py-3.5 text-[15px]"
                 >
                   {cobrando
                     ? 'Registrando…'
-                    : monto >= falta && falta > 0
-                      ? `Cobrar ${formatMoney(monto)} · ${metodo}`
-                      : `Abonar ${formatMoney(monto)} · ${metodo}`}
+                    : `${monto >= falta && falta > 0 ? 'Cobrar' : 'Abonar'} ${formatMoney(monto)}${
+                        propina > 0 ? ` + ${formatMoney(propina)} propina` : ''
+                      } · ${metodo}`}
                 </Button>
               </div>
             </>

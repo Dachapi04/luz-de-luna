@@ -132,7 +132,8 @@ export function VentaCard({
               {pagosDe(pedido).map((pg) => (
                 <div key={pg.id}>
                   {pg.nota ? `${pg.nota} · ` : ''}
-                  {formatMoney(pg.monto)} · {pg.metodoPago}
+                  {formatMoney(pg.monto)}
+                  {(pg.propina ?? 0) > 0 ? ` + propina ${formatMoney(pg.propina)}` : ''} · {pg.metodoPago}
                   {pg.vuelto > 0 ? ` · vuelto ${formatMoney(pg.vuelto)}` : ''} · {pg.cajeroNombre}
                 </div>
               ))}

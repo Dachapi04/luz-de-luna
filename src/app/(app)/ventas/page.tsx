@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useViewGuard } from '@/hooks/useViewGuard';
 import { usePedidosDesde } from '@/hooks/usePedidos';
-import { totalPedido } from '@/domain/pedidos';
+import { propinaPedido, totalPedido } from '@/domain/pedidos';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VIEW_META } from '@/domain/permissions';
 import { Input } from '@/components/ui/Input';
@@ -77,7 +77,7 @@ export default function VentasPage() {
       <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
         <Input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Filtrar por mesa, fecha o mesero" className="min-w-[200px] flex-1 text-[13px]" />
         <div className="font-mono text-[11px] text-muted-2">
-          {list.length} pedidos · {formatMoney(list.reduce((a, p) => a + totalPedido(p), 0))}
+          {list.length} pedidos · {formatMoney(list.reduce((a, p) => a + totalPedido(p) + propinaPedido(p), 0))}
         </div>
       </div>
 

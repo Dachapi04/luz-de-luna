@@ -260,8 +260,10 @@ export interface RegistrarPagoInput {
   monto: number;
   metodoPago: MetodoPago;
   nota?: string;
-  /** Solo relevante en Efectivo; si se omite se asume igual al monto (sin vuelto). */
+  /** Solo relevante en Efectivo; si se omite se asume igual a monto + propina (sin vuelto). */
   recibido?: number;
+  /** Propina opcional que deja el cliente, en el mismo método de pago. */
+  propina?: number;
   /** Día de la venta (YYYY-MM-DD). Si se omite, no se toca la fecha ya guardada del pedido. */
   fecha?: string;
 }
@@ -291,9 +293,13 @@ export async function registrarPago(cajero: Usuario, mesa: string, input: Regist
     if (monto <= 0) throw new ApiError(400, 'El monto debe ser mayor a cero');
     if (monto - falta > 0.01) throw new ApiError(400, `El monto excede el saldo pendiente (${falta})`);
 
-    const recibido = input.metodoPago === 'Efectivo' ? round3(Number(input.recibido ?? monto) || 0) : monto;
-    if (input.metodoPago === 'Efectivo' && recibido < monto) {
-      throw new ApiError(400, 'El monto recibido no cubre el abono');
+    const propina = round3(Number(input.propina) || 0);
+    if (propina < 0) throw new ApiError(400, 'La propina no puede ser negativa');
+    const aCubrir = round3(monto + propina);
+
+    const recibido = input.metodoPago === 'Efectivo' ? round3(Number(input.recibido ?? aCubrir) || 0) : aCubrir;
+    if (input.metodoPago === 'Efectivo' && recibido < aCubrir) {
+      throw new ApiError(400, propina > 0 ? 'El monto recibido no cubre el abono más la propina' : 'El monto recibido no cubre el abono');
     }
 
     const nuevoPago: PagoParcial = {
@@ -301,7 +307,8 @@ export async function registrarPago(cajero: Usuario, mesa: string, input: Regist
       monto,
       metodoPago: input.metodoPago,
       recibido,
-      vuelto: round3(recibido - monto),
+      vuelto: round3(recibido - aCubrir),
+      ...(propina > 0 && { propina }),
       nota: input.nota?.trim() ?? '',
       cajeroId: cajero.id,
       cajeroNombre: cajero.nombre,
@@ -321,6 +328,7 @@ export async function registrarPago(cajero: Usuario, mesa: string, input: Regist
       update.pagado = true;
       update.cobro = {
         total,
+        propina: round3(pagos.reduce((a, p) => a + (p.propina ?? 0), 0)),
         metodoPago: metodosUnicos.length === 1 ? metodosUnicos[0]! : 'Mixto',
         recibido: round3(pagos.reduce((a, p) => a + p.recibido, 0)),
         vuelto: round3(pagos.reduce((a, p) => a + p.vuelto, 0)),

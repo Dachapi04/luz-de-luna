@@ -36,7 +36,9 @@ export default function CobrosPage() {
     .filter((p) => cajero === 'todos' || p.cajeroNombre === cajero)
     .sort((a, b) => (b.fecha + b.fechaHora > a.fecha + a.fechaHora ? 1 : -1));
 
-  const sum = (m: MetodoPago) => rows.filter((p) => p.metodoPago === m).reduce((a, p) => a + p.monto, 0);
+  const conPropina = (p: { monto: number; propina?: number }) => p.monto + (p.propina ?? 0);
+  const sum = (m: MetodoPago) => rows.filter((p) => p.metodoPago === m).reduce((a, p) => a + conPropina(p), 0);
+  const propinas = rows.reduce((a, p) => a + (p.propina ?? 0), 0);
   const metodoColor = (m: MetodoPago) => (m === 'Efectivo' ? 'text-warn-fg' : m === 'Sinpe' ? 'text-luna-fg' : 'text-ok-fg');
 
   return (
@@ -70,6 +72,7 @@ export default function CobrosPage() {
               <span>Cajero</span>
               <span>Método</span>
               <span className="text-right">Monto</span>
+              <span className="text-right">Propina</span>
               <span className="text-right">Recibido</span>
               <span className="text-right">Vuelto</span>
             </div>
@@ -91,6 +94,7 @@ export default function CobrosPage() {
                   <span className="text-xs text-text-soft">{p.cajeroNombre}</span>
                   <span className={`font-mono text-xs ${metodoColor(p.metodoPago)}`}>{p.metodoPago}</span>
                   <span className="text-right font-mono">{formatMoney(p.monto)}</span>
+                  <span className="text-right font-mono text-muted">{p.propina ? formatMoney(p.propina) : '—'}</span>
                   <span className="text-right font-mono text-muted">{formatMoney(p.recibido)}</span>
                   <span className="text-right font-mono text-muted">{formatMoney(p.vuelto)}</span>
                 </div>
@@ -100,8 +104,14 @@ export default function CobrosPage() {
           <div className="mt-3.5 flex flex-wrap gap-5 font-mono text-[13px]">
             <div>
               <span className="text-muted">Total </span>
-              <span>{formatMoney(rows.reduce((a, p) => a + p.monto, 0))}</span>
+              <span>{formatMoney(rows.reduce((a, p) => a + conPropina(p), 0))}</span>
             </div>
+            {propinas > 0 && (
+              <div>
+                <span className="text-muted">Propinas </span>
+                <span>{formatMoney(propinas)}</span>
+              </div>
+            )}
             <div>
               <span className="text-muted">Efectivo </span>
               <span>{formatMoney(sum('Efectivo'))}</span>

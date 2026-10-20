@@ -50,6 +50,15 @@ export function comandasDeEstacion(abiertos: Pedido[], deHoy: Pedido[], estacion
   };
 }
 
+export function propinaPedido(pedido: Pick<Pedido, 'pagos' | 'cobro'>): number {
+  return round3(pagosDe(pedido).reduce((a, p) => a + (p.propina ?? 0), 0));
+}
+
+/** Lo que entró por un pedido pagado: la cuenta más las propinas. Es lo que cuenta como venta. */
+export function ventaCobrada(pedido: Pick<Pedido, 'pagos' | 'cobro'>): number {
+  return (pedido.cobro?.total ?? 0) + propinaPedido(pedido);
+}
+
 export function totalesPeriodo(
   pedidos: Pedido[],
   compras: { fecha: string; total: number }[],
@@ -58,7 +67,7 @@ export function totalesPeriodo(
 ) {
   const ventas = pedidos
     .filter((p) => p.pagado && p.fecha >= desde && (!hasta || p.fecha <= hasta) && p.cobro)
-    .reduce((acc, p) => acc + (p.cobro?.total ?? 0), 0);
+    .reduce((acc, p) => acc + ventaCobrada(p), 0);
   const comprasTotal = compras
     .filter((c) => c.fecha >= desde && (!hasta || c.fecha <= hasta))
     .reduce((acc, c) => acc + c.total, 0);
@@ -103,7 +112,7 @@ export function saldoPendiente(pedido: Pick<Pedido, 'items' | 'pagos'>): number 
 export function montoPorMetodo(pedido: Pick<Pedido, 'pagos' | 'cobro'>, metodo: MetodoPago): number {
   return pagosDe(pedido)
     .filter((p) => p.metodoPago === metodo)
-    .reduce((a, p) => a + p.monto, 0);
+    .reduce((a, p) => a + p.monto + (p.propina ?? 0), 0);
 }
 
 export interface PagoConMesa extends PagoParcial {

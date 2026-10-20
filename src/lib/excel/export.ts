@@ -68,6 +68,7 @@ export async function buildBackupWorkbook(): Promise<Buffer> {
           fecha: p.fecha,
           nota: pg.nota,
           monto: pg.monto,
+          propina: pg.propina ?? 0,
           metodoPago: pg.metodoPago,
           recibido: pg.recibido,
           vuelto: pg.vuelto,
